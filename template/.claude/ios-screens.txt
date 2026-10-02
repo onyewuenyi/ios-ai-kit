@@ -1,0 +1,4 @@
+# Screens for the visual matrix (scripts/ai/visual.sh, /verify gate 6).
+# One per line:  name | launch arguments that open that screen in a known state (DEBUG-only seams)
+# The first line launches the app plainly. Add a line per screen worth protecting.
+launch |
