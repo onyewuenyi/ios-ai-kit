@@ -22,13 +22,14 @@ cd /path/to/YourApp && scripts/ai/bootstrap.sh               # once per Mac: too
 
 | | |
 |---|---|
-| **`/verify`** | Six gates, written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`) through Xcode's device interaction. |
+| **`/verify`** | Six gates, written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. 7, with `--release`, the **release gate** (`release.sh`): the Release build, or a real `.xcarchive`, audited for submission blockers (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). |
 | **Stop hook** | A turn that changed code can't end on a broken build: format lint plus an incremental build, cached per change. It blocks once, and never loops. |
 | **Guard hook** | Denies a simulator destination with no runtime, and `simctl … booted` when more than one simulator is booted. Asks before erasing every simulator or editing a committed Core Data model version. |
 | **One simulator per checkout** | Created on first use, recorded with its owning path, addressed by UDID. Worktrees, including Claude Code's own `--worktree`, never share a device. `destroy` refuses to delete another checkout's simulator. |
 | **`ios-loop` skill** | The development loop, Xcode MCP versus shell (with Xcode 27's measured behavior), bug fixes, two-pass UI work, parallel worktrees, and routing work to cloud sessions. |
+| **UI assertions** | `xcui.py` launches the build the kit already made, by UDID, then attaches a *device-only* Xcode interaction session to read the live UI hierarchy. It doesn't use `InstallAndRun`: on a large project, Xcode dropped that session mid-build and kept the simulator locked to it. |
 | **Agents** | `build-verify` (Haiku) returns only `file:line: message`. `ui-verify` judges the screenshots and drives Xcode's device interaction. |
-| **Scripts** | `scripts/ai/{build,test,check,verify,visual,sim,doctor,bootstrap,worktree,format}.sh`, plus `xcui.py`, `xcresult.py`, `blast-radius.py`, `audit-bundle.py`, `debug-fences.py`, and `frames.swift` / `compare.swift`. |
+| **Scripts** | `scripts/ai/{build,test,check,verify,visual,release,sim,doctor,bootstrap,worktree,format}.sh`, plus `xcui.py`, `xcresult.py`, `blast-radius.py`, `audit-bundle.py`, `debug-fences.py`, and `frames.swift` / `compare.swift`. |
 
 ## Tested
 
@@ -36,7 +37,8 @@ cd /path/to/YourApp && scripts/ai/bootstrap.sh               # once per Mac: too
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates.
-- **The visual gate:** caught a blank empty state that every mechanical gate passed.
+- **The visual gate:** caught a blank empty state that every mechanical gate passed. On Ezra, it found two text-clipping bugs at the largest text size.
+- **The release gate:** fails a fresh app on 3 real submission blockers, and passes Ezra on every check.
 - **The Stop hook:** live in Claude Code, it blocked a broken build and showed the exact error.
 - **Parallel worktrees:** two test runs at once, each on its own simulator.
 - **Xcode device interaction:** start a session, install and run, assert the hierarchy, in both directions.

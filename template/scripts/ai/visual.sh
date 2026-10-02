@@ -41,11 +41,11 @@ while IFS='|' read -r name args f3 f4; do
     container=$AI_ROOT/${WORKSPACE:-$PROJECT}
     set +e
     python3 "$AI_DIR/xcui.py" --udid "$(S udid)" --container "$container" --bundle "$APP_BUNDLE_ID" \
-      --args="$BASE_LAUNCH_ARGS $args" --name "$name" "${expects[@]}" > "$out/$name-assert.txt" 2>&1
+      --args="$args" --name "$name" "${expects[@]}" > "$out/$name-assert.txt" 2>&1
     xr=$?; set -e
     case $xr in
       0) echo "visual: $name: hierarchy assertions passed ($(grep -c '^ok' "$out/$name-assert.txt"))" ;;
-      3) echo "visual: $name: hierarchy assertions SKIPPED (Xcode's tools unavailable: open Xcode, enable Xcode Tools under Settings > Intelligence)" ;;
+      3) echo "visual: $name: hierarchy assertions SKIPPED: $(grep -m1 '^xcui' "$out/$name-assert.txt" | cut -c1-200)" ;;
       *) echo "visual: $name: hierarchy assertion FAILED:"; grep -E '^FAIL|^xcui' "$out/$name-assert.txt"; fail=1 ;;
     esac
   fi

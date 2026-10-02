@@ -9,7 +9,7 @@ relevant=$(changed_files | grep -E '\.(swift|xcdatamodel|plist|xcstrings|entitle
 [[ -n $relevant ]] || { echo "check: no code changes"; exit 0; }
 hash=$( (printf '%s\n' "$relevant"; printf '%s\n' "$relevant" | while IFS= read -r f; do [[ -f $f ]] && shasum "$f"; done) | shasum | cut -c1-16)
 [[ -f $BUILD_DIR/check.pass && $(cat "$BUILD_DIR/check.pass") == "$hash" ]] && { echo "check: this exact change already passed"; exit 0; }
-swift=$(printf '%s\n' "$relevant" | grep '\.swift$' | while IFS= read -r f; do [[ -f $f ]] && echo "$f"; done || true)
+swift=$(printf '%s\n' "$relevant" | grep '\.swift$' | grep -v '^scripts/ai/' | while IFS= read -r f; do [[ -f $f ]] && echo "$f"; done || true)
 rc=0
 if [[ -n $swift ]]; then
   # shellcheck disable=SC2086

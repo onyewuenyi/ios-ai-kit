@@ -91,7 +91,8 @@ def write(path: Path, text: str, dry: bool, what: str) -> None:
 
 def copy_tree(rel: str, repo: Path, dry: bool, overwrite: bool) -> None:
     src = KIT / rel
-    files = [src] if src.is_file() else [p for p in src.rglob("*") if p.is_file()]
+    files = [src] if src.is_file() else [p for p in src.rglob("*")
+                                         if p.is_file() and "__pycache__" not in p.parts and p.name != ".DS_Store"]
     for f in files:
         dst = repo / f.relative_to(KIT)
         if dst.exists() and not overwrite:

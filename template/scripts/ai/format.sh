@@ -6,9 +6,10 @@ mode=format; [[ ${1:-} == --lint ]] && { mode=lint; shift; }
 cd "$AI_ROOT"
 files=()
 if [[ ${1:-} == --all ]]; then
-  for d in $SOURCE_DIRS; do while IFS= read -r f; do files+=("$f"); done < <(find "$d" -name '*.swift' -not -path '*/.build/*' -not -path '*/DerivedData/*'); done
+  for d in $SOURCE_DIRS; do while IFS= read -r f; do files+=("$f"); done < <(find "$d" -name '*.swift' -not -path '*/.build/*' -not -path '*/DerivedData/*' -not -path '*scripts/ai/*'); done
 elif (( $# )); then files=("$@")
-else while IFS= read -r f; do [[ $f == *.swift && -f $f ]] && files+=("$f"); done < <(changed_files); fi
+else while IFS= read -r f; do [[ $f == *.swift && -f $f && $f != scripts/ai/* ]] && files+=("$f"); done < <(changed_files); fi
+# (scripts/ai/*.swift is kit tooling, not project code: never held to the project's style.)
 (( ${#files[@]} )) || { echo "format: no Swift files to check"; exit 0; }
 cfg=(); [[ -f .swift-format ]] && cfg=(--configuration .swift-format)
 if [[ $mode == lint ]]; then

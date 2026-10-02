@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """Assert what a screen SHOWS, through Xcode's device-interaction tools (xcrun mcpbridge).
 
-Opens this checkout's project in Xcode if needed, starts a device-interaction session on THIS
-checkout's simulator (by UDID), builds, installs and runs the app with the given launch arguments,
-captures the UI hierarchy, and checks that each expected label is present.
+Launches the app ALREADY built and installed by scripts/ai (sim.sh launch, with the given launch
+arguments) on THIS checkout's simulator, attaches a device-only interaction session (no Xcode build,
+no open workspace needed), captures the UI hierarchy, and checks each expected label.
+
+Why not DeviceInteractionInstallAndRun: it rebuilds the app with Xcode's own DerivedData, and on a
+large project (measured on Ezra, Xcode 27.0) the session was dropped during that build while Xcode
+kept the device locked to it, surviving EndSession and a simulator reboot.
 
 usage: xcui.py --udid <UDID> --container <path.xcodeproj|.xcworkspace> --bundle <id>
                [--args="-Flag value"] (the = form: launch arguments start with -) [--expect "label"]… [--absent "label"]… [--name "Screen Name"]
 Prints `hierarchy: <path>`, `screenshot: <path>`, then `ok`/`FAIL` per expectation.
 Exit 0 all good · 1 an expectation failed · 3 Xcode's tools unavailable (not running, not approved).
 
-Notes measured on Xcode 27.0: calls must use the workspaceIdentifier returned by
-XcodeListWorkspaces / XcodeOpenWorkspace (a path is rejected despite the schema); the first
-XcodeOpenWorkspace is what asks the user to approve the agent; deviceIdentifier accepts a UDID.
+Notes measured on Xcode 27.0: the agent is approved by the first XcodeOpenWorkspace (until then
+every tool answers "isn't approved"); workspace calls need the workspaceIdentifier from
+XcodeListWorkspaces / XcodeOpenWorkspace (a path is rejected); deviceIdentifier accepts a UDID;
+a session id that was "recently used" is refused, so every attempt gets a fresh one.
 """
 
 import argparse
@@ -23,6 +28,8 @@ import shlex
 import subprocess
 import sys
 import time
+import uuid
+from pathlib import Path
 
 
 class Bridge:
@@ -81,30 +88,52 @@ def main() -> int:
     ap.add_argument("--expect", action="append", default=[])
     ap.add_argument("--absent", action="append", default=[])
     ap.add_argument("--name", default="Verify Screen")
+    ap.add_argument("--sim", default=str(Path(__file__).with_name("sim.sh")), help="sim.sh that launches the app")
+    ap.add_argument("--wait", type=float, default=4.0, help="seconds after launch before capturing")
     a = ap.parse_args()
     try:
         b = Bridge()
-        lst = b.tool("XcodeListWorkspaces", {}, 30)
     except Exception as e:
-        lst = ""
-        if "isn't approved" not in str(e) and "not approved" not in str(e):
-            print(f"xcui: Xcode tools unavailable ({str(e)[:160]})")
-            return 3
+        print(f"xcui: Xcode tools unavailable ({str(e)[:160]})")
+        return 3
     try:
-        m = re.search(r"workspaceIdentifier: (\S+?),? workspacePath: " + re.escape(a.container) + r"\s*$", lst, re.M)
-        ws = m.group(1) if m else json.loads(b.tool("XcodeOpenWorkspace", {"path": a.container}, 180))["workspaceIdentifier"]
-        key = json.loads(b.tool("DeviceInteractionStartWorkspaceSession",
-                                {"sessionIdentifier": a.name.title(), "deviceIdentifier": a.udid,
-                                 "workspaceIdentifier": ws}, 300))["interactionSessionKey"]
+        b.tool("XcodeListWorkspaces", {}, 30)
+    except RuntimeError as e:
+        if "approved" not in str(e):
+            print(f"xcui: Xcode tools unavailable ({str(e)[:160]})")
+            b.close()
+            return 3
+        try:  # opening the project once is what asks the person to approve this agent
+            b.tool("XcodeOpenWorkspace", {"path": a.container}, 180)
+        except Exception as e2:
+            print(f"xcui: Xcode tools not approved ({str(e2)[:160]})")
+            b.close()
+            return 3
+
+    def start() -> str:
+        def args() -> dict:  # Xcode refuses an id "currently in use or recently used": fresh one per attempt
+            return {"sessionIdentifier": f"{a.name.title()} {uuid.uuid4().hex[:6]}", "deviceIdentifier": a.udid}
+        try:
+            return json.loads(b.tool("DeviceInteractionStartSession", args(), 120))["interactionSessionKey"]
+        except RuntimeError as e:
+            stale = re.search(r"different session with key '([^']+)'", str(e))
+            if not stale:
+                raise
+            b.tool("DeviceInteractionEndSession", {"interactionSessionKey": stale.group(1)}, 60)
+            return json.loads(b.tool("DeviceInteractionStartSession", args(), 120))["interactionSessionKey"]
+
+    # Launch our build with the screen's arguments, the same way the screenshots do.
+    sim = ["/bin/bash", a.sim, "launch", *shlex.split(a.args)]
+    subprocess.run(sim, capture_output=True, text=True)
+    time.sleep(a.wait)
+    try:
+        key = start()
     except Exception as e:
-        print(f"xcui: Xcode tools unavailable ({str(e)[:200]})")
+        print(f"xcui: could not attach a device-interaction session ({str(e)[:220]})")
         b.close()
         return 3
     rc = 0
     try:
-        b.tool("DeviceInteractionInstallAndRun", {"interactionSessionKey": key, "workspaceIdentifier": ws,
-                                                  "commandLineArguments": ["$(inherited)", *shlex.split(a.args)]}, 900)
-        time.sleep(2)
         cap = json.loads(b.tool("DeviceInteractionSynthesize", {"interactSessionKey": key, "activationBundleId": a.bundle}, 120))
         hier = open(cap["hierarchyPath"], errors="replace").read()
         print(f"hierarchy: {cap['hierarchyPath']}\nscreenshot: {cap['screenshotPath']}")
