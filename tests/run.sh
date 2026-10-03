@@ -9,6 +9,7 @@ echo "pr digest"; python3 "$here/prs.py" || bad=1
 echo "delegate"; "$here/delegate.sh" || bad=1
 echo "bearings"; "$here/bearings.sh" || bad=1
 echo "friction"; python3 "$here/friction.py" || bad=1
+echo "screens drift"; python3 "$here/screens_drift.py" || bad=1
 echo "one-job standard"; python3 "$here/standard.py" || bad=1
 echo "installer"; "$here/install.sh" || bad=1
 echo "syntax"
