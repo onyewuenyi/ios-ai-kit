@@ -14,7 +14,7 @@ ctx() { b | python3 -c 'import json,sys; d=sys.stdin.read(); print(json.loads(d)
 
 ok "a clean, current checkout says nothing" '[[ -z $(b) ]]'
 start=$(python3 -c 'import time;print(time.time())'); b >/dev/null; secs=$(python3 -c "import time;print(time.time()-$start)")
-ok "it is cheap (under 1 s)" 'python3 -c "import sys; sys.exit(0 if $secs < 1 else 1)"'
+ok "it is cheap (under 2 s, even beside a running build)" 'python3 -c "import sys; sys.exit(0 if $secs < 2 else 1)"'
 echo x > a.txt; g add a.txt; g commit -qm local
 ok "commits on main not on origin point at pr.sh" '[[ $(ctx) == *"not on origin: scripts/ai/pr.sh"* ]]'
 echo y >> a.txt

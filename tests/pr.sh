@@ -15,7 +15,8 @@ setup() {  # a repo whose origin is a bare remote with main, kit scripts committ
 echo "$*" >> "$GH_LOG"
 case "$1 $2" in
   "auth status") exit 0 ;;
-  "pr view") [[ -n ${GH_HAS_PR:-} ]] && { echo "https://github.com/o/r/pull/7"; exit 0; }; exit 1 ;;
+  "pr view") [[ -n ${GH_HAS_PR:-} ]] || exit 1; [[ "$*" == *body* ]] && echo "${GH_BODY:-}" || echo "https://github.com/o/r/pull/7"; exit 0 ;;
+  "pr edit") exit 0 ;;
   "pr create") echo "https://github.com/o/r/pull/8" ;;
 esac
 G
@@ -59,6 +60,18 @@ setup; g switch -qc feature/again; echo d > d.txt; g add d.txt; g commit -qm "Ag
 out=$(pr)
 ok "reports the existing PR" '[[ $out == *"updated https://github.com/o/r/pull/7"* ]]'
 ok "never calls pr create" '! grep -q "pr create" "$GH_LOG"'
+
+echo "an open PR's description follows a fresh /verify report"
+setup; g switch -qc feature/desc; echo d > d.txt; g add d.txt; g commit -qm "Desc"; export GH_HAS_PR=1
+mkdir -p .build/verify; printf "<!-- ios-ai-kit verify sha=%s dirty=0 result=PASS -->\n| 1 | build | PASS |\n" "$(git rev-parse HEAD)" > .build/verify/report.md
+export GH_BODY="<!-- ios-ai-kit pr -->
+/verify has not run on this commit"; out=$(pr)
+ok "a kit-written placeholder is replaced by the fresh report" 'grep -q "pr edit feature/desc --body" "$GH_LOG" && [[ $out == *"description: the /verify report"* ]]'
+: > "$GH_LOG"; export GH_BODY="My own words about this change."; out=$(pr)
+ok "a description without the kit marker is never touched" '! grep -q "pr edit" "$GH_LOG" && [[ $out == *"updated https://github.com/o/r/pull/7" ]]'
+: > "$GH_LOG"; export GH_BODY="<!-- ios-ai-kit verify sha=$(git rev-parse HEAD) dirty=0 result=PASS -->"; out=$(pr)
+ok "a description already showing this commit's report is left as is" '! grep -q "pr edit" "$GH_LOG"'
+unset GH_HAS_PR GH_BODY
 
 echo "refusals"
 setup; out=$(pr)
