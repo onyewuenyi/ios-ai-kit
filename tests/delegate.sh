@@ -23,7 +23,7 @@ shift 2; exec "$@"
 S
 cat > "$w/bin/gh" <<'G'
 #!/bin/bash
-[[ "$1 $2" == "pr view" ]] && { [[ $3 == 5 ]] && echo claude/feature; exit 0; }
+[[ "$1 $2" == "pr view" ]] && { [[ "$*" == *state* && "$*" != *headRefName* ]] && { echo "${PR_STATE:-OPEN}"; exit 0; }; [[ $3 == 5 ]] && echo claude/feature; exit 0; }
 exit 1
 G
 chmod +x "$w/bin/"*; export PATH="$w/bin:$PATH"; unset CLAUDE_CODE_REMOTE
@@ -57,4 +57,11 @@ out=$(scripts/ai/worktree.sh pr 9 2>&1)
 ok "a PR that is not open is refused" '[[ $out == *"not open"* ]]'
 out=$(scripts/ai/worktree.sh new topic 2>&1)
 ok "new uses the claude/ prefix" '[[ $(git -C "$w/app-topic" rev-parse --abbrev-ref HEAD) == claude/topic ]]'
+echo "worktree.sh prune"
+out=$(PR_STATE=OPEN scripts/ai/worktree.sh prune 2>&1)
+ok "an open PR's worktree is kept" '[[ -d $dir && $out == *"removed 0"* ]]'
+echo dirty >> "$dir/f.txt"; out=$(PR_STATE=MERGED scripts/ai/worktree.sh prune 2>&1)
+ok "a merged PR's worktree with uncommitted work is kept, and says why" '[[ -d $dir && $out == *"uncommitted work"* ]]'
+git -C "$dir" checkout -q f.txt; out=$(PR_STATE=MERGED scripts/ai/worktree.sh prune 2>&1)
+ok "a merged PR's clean worktree is removed" '[[ ! -d $dir && $out == *"removed 1"* ]]'
 echo "$pass passed, $fail failed"; exit $fail

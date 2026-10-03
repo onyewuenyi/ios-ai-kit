@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.1 (2026-10-03)
+
+Friction found by running the workflow on a real app and its real PRs, each fix with tests:
+
+- **Gates check the whole branch.** Format and reach took only uncommitted changes, so a branch whose work was committed (before `pr.sh`, and every PR the lead verifies) checked nothing and passed. They now take everything since the branch left the default branch.
+- **A busy build folder means wait or skip.** `build.sh` and `test.sh` wait for another xcodebuild on the same DerivedData; the Stop check skips. No more "database is locked" read as a failed build.
+- **The guard reads written text as text.** A heredoc fed to `cat` or `tee` is not a push; one fed to `bash` still is.
+- **`pr.sh` keeps a PR's description true:** a kit-written description is replaced by a fresh `/verify` report; a hand-written one is never touched.
+- **Verified survives docs-only commits:** a PR verified before commits that touch no app code still counts as verified, and says so.
+- **`worktree.sh prune`** returns merged and closed PRs' worktrees and simulators; `/lead` runs it.
+- **A status line** (opt-in: `install.py --statusline`, or `/ios-ai-kit:setup`): branch, HEAD's verify state, PRs that need you.
+- Smaller: `worktree.sh` leaves no stray temp file; `prs.py` names a missing GitHub remote; `doctor.sh` names the scope a leftover ios-stack was installed at; a Markdown note does not make a verify run dirty.
+
 ## 0.5.0 (2026-10-03)
 
 Ideas from the Grok "Engineering Lead" and "Dr Eggbot" bots and from pstack, built as Claude Code only, and ios-stack folded in (now retired).

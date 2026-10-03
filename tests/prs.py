@@ -87,6 +87,21 @@ for name, p, c, want in CASES:
     b, a, _ = prs.classify(p, c)
     check(name, (b, a), want)
 
+# verified at an earlier commit: holds only while later commits touch no app code
+V = "v" * 40
+vrows = [{"ts": "1", "run_id": "r", "sha": V, "branch": "b", "dirty": "0", "gate": "build", "result": "PASS",
+          "secs": "1", "summary": ""}]
+later = pr(commits=[{"oid": V}, {"oid": "a" * 40}])
+check("verified earlier, later commits only docs/scripts → still verified",
+      prs.verified_at(later, vrows, lambda a, b: ["scripts/ai/pr.sh", "docs/x.md"]), (V, True))
+check("verified earlier, a later commit changes Swift → not verified",
+      prs.verified_at(later, vrows, lambda a, b: ["App/Home.swift"]), (V, False))
+check("verified earlier, but git cannot tell → not verified",
+      prs.verified_at(later, vrows, lambda a, b: None), (V, False))
+check("never verified → not verified", prs.verified_at(pr(commits=[{"oid": "c" * 40}]), vrows), (None, False))
+b, a, why = prs.classify(pr(), ctx(verified=True, verified_sha=V))
+check("its reason says why it still counts", "later commits touch no app code" in why, True)
+
 # session links: in the body or a commit trailer
 check("session link from the body", prs.session_link(pr(body="see https://claude.ai/code/session_01ABC")),
       "https://claude.ai/code/session_01ABC")

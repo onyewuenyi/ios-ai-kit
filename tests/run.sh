@@ -5,6 +5,7 @@ echo "hooks"; "$here/hooks.sh" || bad=1
 echo "cloud gate"; python3 "$here/cloud_gate.py" || bad=1
 echo "pr"; "$here/pr.sh" || bad=1
 echo "verify history"; "$here/verify_history.sh" || bad=1
+echo "gate scope"; "$here/scope.sh" || bad=1
 echo "pr digest"; python3 "$here/prs.py" || bad=1
 echo "delegate"; "$here/delegate.sh" || bad=1
 echo "bearings"; "$here/bearings.sh" || bad=1

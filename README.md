@@ -58,7 +58,7 @@ Starting work is not done; an open PR is not done. **`/lead`** reads every open 
 | Healthy | checks running, a fresh draft | nobody: counted, never listed |
 | Done | merged, closed or abandoned since you last looked | reported once |
 
-It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR's existing branch in its own worktree and simulator: it steers, it never respawns), including running `/verify` on cloud-authored PRs, which only a Mac can do. It never merges, closes, force-pushes or posts outside your terminal; `LEAD_COMMENT`, `LEAD_PUSH` and `LEAD_REBASE` in `.claude/ios.env` opt in. Leave **`/loop /lead`** running on a workday: it paces itself (about 10 minutes while checks run, 60 when all is healthy) and stays quiet unless something needs you.
+It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR's existing branch in its own worktree and simulator: it steers, it never respawns), including running `/verify` on cloud-authored PRs, which only a Mac can do. When a PR is merged or closed, `scripts/ai/worktree.sh prune` gives back its worktree, simulator and DerivedData (keeping, and naming, any with unpushed work). It never merges, closes, force-pushes or posts outside your terminal; `LEAD_COMMENT`, `LEAD_PUSH` and `LEAD_REBASE` in `.claude/ios.env` opt in. Leave **`/loop /lead`** running on a workday: it paces itself (about 10 minutes while checks run, 60 when all is healthy) and stays quiet unless something needs you.
 
 ## Delegating to cloud sessions
 
@@ -68,6 +68,7 @@ It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR
 
 - **Session-start bearings** (a `SessionStart` hook): only what is off, in a few lines: commits on the default branch that never went through a PR, uncommitted work, HEAD unverified or failing, PRs that need you (from the lead's cached digest, with its age), doctor warnings, a stale healthcheck. Git and files only, under a second, silent when all is well.
 - **`/friction`**: what keeps costing this repo's sessions time, read from its Claude Code transcripts and verify history: exact read-only commands no rule allows, rejected calls, repeated hook refusals, Stop-hook build failures, recurring compiler errors, flaky tests, gates whose median grew, and on Mondays oversized outputs, re-read files and token use. You pick; each accepted fix lands with a test, through a PR. `/lead` runs it quietly each weekday.
+- **Status line** (opt-in per developer: `python3 install.py <repo> --statusline`, or `/ios-ai-kit:setup` and say yes): `⎇ claude/topic · ✓ verified 3171e3c · 2 PRs need you · 3 uncommitted`, always under the prompt. Git and files only, about 0.1 s; written to the gitignored `.claude/settings.local.json` and never over a status line you already have.
 - **Verify history:** every gate and failing test of every `/verify`, per commit, shared by all worktrees (`python3 scripts/ai/history.py last | flips | stats`). It is how the lead knows a PR is verified at its head and how friction finds flakes.
 
 ## Playbooks, review and lessons
@@ -113,7 +114,7 @@ Four layers; each says what it does NOT guarantee.
 
 ## Tested
 
-`tests/run.sh` runs 255 cases with no simulator build: 24 for the guard, 45 for the cloud gate, 20 for `pr.sh`, 13 for the verify history, 42 for the PR digest, 14 for delegation, 14 for the bearings, 17 for friction, 6 for screen drift, 37 for the one-job standard and 23 for the installer, plus syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
+`tests/run.sh` runs every suite with no simulator build (about 290 cases: the guard, the cloud gate, `pr.sh`, verify history, gate scope, the PR digest, delegation, bearings and the status line, friction, screen drift, the one-job standard and the installer), plus syntax checks on stock `/bin/bash` 3.2 and python3.sh`, 13 for the verify history, 42 for the PR digest, 14 for delegation, 14 for the bearings, 17 for friction, 6 for screen drift, 37 for the one-job standard and 23 for the installer, plus syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates. The visual gate caught a blank empty state every mechanical gate passed, and two text clips at the largest text size.
