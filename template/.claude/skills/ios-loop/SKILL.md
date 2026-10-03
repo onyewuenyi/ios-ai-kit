@@ -5,6 +5,12 @@ description: The iOS development loop for this repo — build, test, run and ver
 
 # iOS loop
 
+**Job:** take one change from idea to a proven, proposed PR on this checkout's own simulator.
+
+**Not my job:** merging · pushing to the default branch · editing `*.pbxproj` by hand or build settings the task did not ask for · following a PR after it opens (`/lead` does) · reviewing someone else's diff (`/interrogate`).
+
+**When there is nothing to report:** the gate results and the PR link, nothing more.
+
 Every change goes through the same loop, one logical change per build. Your claim that something works is not evidence: a build result, a test run, a hierarchy assertion or a screenshot you looked at is.
 
 ## The loop

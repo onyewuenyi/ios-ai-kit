@@ -6,6 +6,12 @@ disable-model-invocation: true
 
 # Set up ios-ai-kit in this repo
 
+**Job:** install or upgrade the kit in this repo and say exactly what is left for the owner.
+
+**Not my job:** running `protect-main.sh` without a yes (it changes GitHub settings) · accepting the trust prompt or signing in for the owner · pushing to the default branch · editing app code.
+
+**When there is nothing to report:** "ios-ai-kit is current; doctor reports nothing left."
+
 The kit's files live next to this skill: the installer is `../../install.py` relative to this skill's base directory (the line "Base directory for this skill" above gives the absolute path).
 
 1. **Check the repo.** Run `git rev-parse --show-toplevel` and `git status --short`. Stop and say so if this is not a git repo or has no `.xcodeproj`/`.xcworkspace`. If the tree has uncommitted changes, tell the person and continue only on their word: the install writes files beside them.
