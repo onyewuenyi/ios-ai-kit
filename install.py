@@ -25,8 +25,8 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parent / "template"
 KIT_OWNED = ["scripts/ai", ".claude/hooks", ".claude/skills/ios-loop", ".claude/skills/verify",
-             ".claude/skills/lead",
-             ".claude/rules/ios27-swift.md", ".claude/agents/build-verify.md", ".claude/agents/ui-verify.md"]
+             ".claude/skills/lead", ".claude/skills/interrogate", ".claude/skills/reflect",
+             ".claude/rules/ios27-swift.md", ".claude/agents/build-verify.md", ".claude/agents/ui-verify.md", ".claude/agents/review-lens.md"]
 CREATE_IF_MISSING = [".claude/ios-screens.txt",
                      ".github/pull_request_template.md", "docs/ai-workflow.md"]
 GITIGNORE = [".build/", "__pycache__/", ".claude/ios.local.env", "CLAUDE.local.md", ".claude/settings.local.json", ".claude/worktrees/"]
