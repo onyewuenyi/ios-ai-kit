@@ -1,62 +1,95 @@
 # ios-ai-kit
 
-A Claude Code setup for iOS repositories in which "done" is proven on a real simulator. It uses only tools that ship with macOS and Xcode 27 (`xcodebuild`, `simctl`, `xcresulttool`, `swift-format`, `xcrun mcpbridge`, AVFoundation), plus Claude Code's own project config. Everything it adds is committed to the repo, so every teammate's Claude behaves the same way.
+A Claude Code workflow for iOS repositories in which "done" is proven on a real simulator and every change reaches `main` through a pull request. It uses only tools that ship with macOS and Xcode 27 (`xcodebuild`, `simctl`, `xcresulttool`, `swift-format`, `xcrun mcpbridge`, AVFoundation), the GitHub CLI, and Claude Code's own project config. Everything it adds is committed to your repo, so every teammate's Claude, and every cloud session, behaves the same way.
 
-## Install into any iOS project
+## Get it
 
-```bash
-python3 ~/Projects/ios-ai-kit/install.py /path/to/YourApp    # detects project/workspace, scheme, bundle id, deployment target
-cd /path/to/YourApp && scripts/ai/bootstrap.sh               # once per Mac: toolchain, Apple's skills, simulator, smoke test
+**From the Claude Code plugin marketplace (recommended).** In Claude Code:
+
+```
+/plugin marketplace add OWNER/ios-ai-kit
+/plugin install ios-ai-kit@ios-ai-kit
 ```
 
-**Re-run `install.py` to upgrade.** It's idempotent:
-- Kit-owned files are updated: `scripts/ai/*`, `.claude/hooks/*`, the `ios-loop` and `verify` skills, and the two agents.
-- Team-owned files are only created when missing: `.claude/ios.env`, `.claude/ios-screens.txt`, the PR template and `docs/ai-workflow.md`.
-- Existing files are merged, never overwritten:
-  - **`.claude/settings.json`:** permissions are unioned, an existing swift-format hook is respected, and rules from earlier kit versions that turned out wrong are removed.
-  - **`CLAUDE.md`:** a marked block is replaced in place.
-  - **`.mcp.json`, `.gitignore`, `.worktreeinclude`:** merged.
-- **A `.swift-format` matching the code's indentation** is created when missing, so formatting never imposes another style.
+Then, inside your iOS repo, run **`/ios-ai-kit:setup`**. It installs the kit into the repo, bootstraps this Mac, runs the doctor, lists the steps only you can take (below), and proposes the new files as a pull request. Run it again to upgrade.
+
+**From GitHub.**
+
+```bash
+git clone https://github.com/OWNER/ios-ai-kit ~/ios-ai-kit
+python3 ~/ios-ai-kit/install.py /path/to/YourApp   # detects project/workspace, scheme, bundle id, deployment target
+cd /path/to/YourApp && scripts/ai/bootstrap.sh     # once per Mac: toolchain, Apple's skills, simulator, smoke test
+```
+
+`git pull` in the clone and re-run `install.py` to upgrade.
+
+Both routes install the same files. The plugin carries only the `setup` skill; the workflow itself lives in your repo (a plugin cannot ship permission rules, and a teammate or cloud session that never installed the plugin must get the same behavior).
+
+## First run: the steps only you can do
+
+The kit automates everything it can. These steps need a person, a browser, or a decision about your accounts. `scripts/ai/doctor.sh` checks each one it can see and prints the fix, so you can run it any time to see what is left.
+
+| When | Step | Why it can't be automated | `doctor.sh` checks it |
+|---|---|---|---|
+| Once per Mac | Install Xcode 27 and select it: `sudo xcode-select -s /Applications/Xcode.app` | Needs your Apple ID and an admin password | yes |
+| Once per Mac | `brew install gh && gh auth login` | Signs in to your GitHub account in a browser | yes |
+| Once per repo, per Mac | Run `claude` in the repo once and choose **Yes** on "Do you trust the files in this folder?" | Claude Code has no flag for it, and Claude may not change its own permissions. Until then the committed permission rules are ignored (hooks still run) | yes |
+| Once per repo (owner) | `scripts/ai/protect-main.sh` | Changes your repository's settings on GitHub. It adds a ruleset: changes reach the default branch only through pull requests, no force push, no deletion, for everyone including you and any agent. `--allow-direct-push` keeps only the last two | yes |
+| Once per repo (owner) | `/web-setup` in Claude Code, or install the Claude GitHub App on the repo | Grants GitHub access to cloud sessions in a browser | no |
+| Once per Mac (optional) | Xcode ▸ Settings ▸ Intelligence ▸ Model Context Protocol ▸ **Xcode Tools** on, and approve the agent when Xcode asks the first time `/verify` opens the project | An Xcode setting and an approval dialog only you can click. Without it, UI assertions are reported as skipped, never as passed | Xcode running: yes |
+| Before publishing a fork of the kit | Add a LICENSE, and replace `OWNER` in this README and the marketplace command with your GitHub account | A legal and naming choice | no |
+
+## How a change reaches `main`: always a pull request
+
+1. Work and commit as usual, on any branch, even `main`.
+2. `/verify` runs the gates and writes the report.
+3. `scripts/ai/pr.sh` opens the pull request with that report as its description. Commits made on `main` move onto a new `claude/<topic>` branch first and your `main` goes back to `origin/main`, so nothing is lost and nothing reaches `main` directly. Run it again after more commits and it updates the same PR.
+4. You review and merge on GitHub. Claude asks before `gh pr merge` and never merges its own PR.
+
+A direct push to the default branch is refused three times over: the guard hook (with the reason and `pr.sh` as the way forward), the cloud gate in cloud sessions, and GitHub's ruleset from `protect-main.sh`, which is the one that holds for every tool and every person.
 
 ## What it gives the repo
 
 | | |
 |---|---|
-| **`/verify`** | Six gates, written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. 7, with `--release`, the **release gate** (`release.sh`): the Release build, or a real `.xcarchive`, audited for submission blockers (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). |
-| **Stop hook** | A turn that changed code can't end on a broken build: format lint plus an incremental build, cached per change. It blocks once, and never loops. |
-| **Guard hook** | Denies a simulator destination with no runtime, and `simctl … booted` when more than one simulator is booted. Asks before erasing every simulator or editing a committed Core Data model version. |
+| **`/verify`** | Gates written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. 7, with `--release`, the **release gate** (`release.sh`): the Release build, or a real `.xcarchive`, audited for submission blockers (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). Ends by offering `pr.sh`. |
+| **`pr.sh`** | The only way to `main`: branch if needed, push, open or update the PR, body from `/verify`. |
+| **Stop hook** | A turn that changed code can't end on a broken build: format lint plus an incremental build, cached per change. It blocks once, never loops, and stays silent where there is no Xcode (cloud sessions). |
+| **Guard hook** | Denies a push to the default branch, a simulator destination with no runtime, and `simctl … booted` when more than one simulator is booted. Asks before erasing every simulator or editing a committed Core Data model version. |
 | **Cloud gate** | Cloud sessions run unattended to a pushed `claude/*` branch and an open PR; every other push, merge or approval-needing step is refused with a reason instead of stalling on a prompt. Silent locally. See **Security model**. |
 | **One simulator per checkout** | Created on first use, recorded with its owning path, addressed by UDID. Worktrees, including Claude Code's own `--worktree`, never share a device. `destroy` refuses to delete another checkout's simulator. |
-| **`ios-loop` skill** | The development loop, Xcode MCP versus shell (with Xcode 27's measured behavior), bug fixes, two-pass UI work, parallel worktrees, and routing work to cloud sessions. |
+| **`ios-loop` skill** | The development loop, Xcode MCP versus shell (with Xcode 27's measured behavior), bug fixes, two-pass UI work, parallel worktrees, routing work to cloud sessions, and the PR step. |
 | **UI assertions** | `xcui.py` launches the build the kit already made, by UDID, then attaches a *device-only* Xcode interaction session to read the live UI hierarchy. It doesn't use `InstallAndRun`: on a large project, Xcode dropped that session mid-build and kept the simulator locked to it. |
 | **Agents** | `build-verify` (Haiku) returns only `file:line: message`. `ui-verify` judges the screenshots and drives Xcode's device interaction. |
-| **Scripts** | `scripts/ai/{build,test,check,verify,visual,release,sim,doctor,bootstrap,worktree,format}.sh`, plus `xcui.py`, `xcresult.py`, `blast-radius.py`, `audit-bundle.py`, `debug-fences.py`, and `frames.swift` / `compare.swift`. |
+| **Scripts** | `scripts/ai/{build,test,check,verify,visual,release,sim,doctor,bootstrap,worktree,format,pr,protect-main}.sh`, plus `xcui.py`, `xcresult.py`, `blast-radius.py`, `audit-bundle.py`, `debug-fences.py`, and `frames.swift` / `compare.swift`. |
 
-## Tested
-
-`tests/run.sh` runs 17 hook cases, 45 cloud-gate cases, 18 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. It was proven live on a brand-new app (Plantly) and on Project Ezra, a real app with about 1,070 tests:
-
-- **Bootstrap:** from a fresh install to a passing smoke test.
-- **`/verify`:** all gates.
-- **The visual gate:** caught a blank empty state that every mechanical gate passed. On Ezra, it found two text-clipping bugs at the largest text size.
-- **The release gate:** fails a fresh app on 3 real submission blockers, and passes Ezra on every check.
-- **The Stop hook:** live in Claude Code, it blocked a broken build and showed the exact error.
-- **Parallel worktrees:** two test runs at once, each on its own simulator.
-- **Xcode device interaction:** start a session, install and run, assert the hierarchy, in both directions.
+**Upgrading is idempotent.** Kit-owned files are updated (`scripts/ai/*`, `.claude/hooks/*`, the `ios-loop` and `verify` skills, the two agents). Team-owned files are only created when missing (`.claude/ios.env`, `.claude/ios-screens.txt`, the PR template, `docs/ai-workflow.md`); an older `ios.env` gains new keys, never loses values. `.claude/settings.json` is merged (permissions unioned, an existing swift-format hook respected, wrong rules from earlier versions removed), `CLAUDE.md` gets a marked block replaced in place, and `.mcp.json`, `.gitignore` and `.worktreeinclude` are merged. A `.swift-format` matching the code's indentation is created when missing.
 
 ## Security model
 
-Three layers; each says what it does NOT guarantee.
+Four layers; each says what it does NOT guarantee.
 
-1. **Permission rules and the guard hook** (`.claude/settings.json`, `guard.py`): pushes, `rm -rf` and `.pbxproj` edits ask a human; secrets are denied to reads; ambiguous simulator targets are denied. They run first, everywhere. They do not stop a human who approves the wrong thing.
-2. **The cloud gate** (`cloud-gate.py`, a `PermissionRequest` hook). It runs only where a prompt would otherwise appear, and only in a cloud session (`CLAUDE_CODE_REMOTE=true`), where nobody is there to answer and an unanswered prompt stalls the session forever. It approves, for one call, a command made only of `git add/commit/status/diff/log/show/fetch/rev-parse`, `git push` of explicit `claude/*` refspecs to `origin` (flags limited to `-u`, `-q`, `-v`), `gh pr create/view/list/checks`, and `tail/head/wc/grep`. Everything else is refused with a reason the session acts on: the default branch, force, delete, `--all/--tags/--mirror`, a bare `git push`, `gh pr merge`, chained commands, substitution, heredocs, redirects to files, `git -C/-c`, env prefixes, every non-Bash prompt. Its parser fails closed; locally it prints nothing. It is enforced by Claude Code, not by GitHub: GitHub's proxy for cloud sessions does not limit which branches a push updates.
-3. **GitHub's own lock** (`scripts/ai/protect-main.sh`, run by the owner): a ruleset on the default branch that refuses force pushes and deletion for every actor, plus `--require-pr` to refuse direct pushes. `doctor.sh` reports whether it is in place. Needs a public repo or GitHub Pro/Team.
+1. **Permission rules** (`.claude/settings.json`): pushes, `gh pr merge`, `rm -rf` and `.pbxproj` edits ask a human; secrets are denied to reads. They do not stop a human who approves the wrong thing, and they apply only once the folder is trusted.
+2. **The guard hook** (`guard.py`, PreToolUse): denies a push to the default branch, and ambiguous simulator targets, everywhere. It fails open on its own errors.
+3. **The cloud gate** (`cloud-gate.py`, a `PermissionRequest` hook). It runs only where a prompt would otherwise appear, and only in a cloud session (`CLAUDE_CODE_REMOTE=true`), where nobody is there to answer and an unanswered prompt stalls the session forever. It approves, for one call, a command made only of `git add/commit/status/diff/log/show/fetch/rev-parse`, `git push` of explicit `claude/*` refspecs to `origin` (flags limited to `-u`, `-q`, `-v`), `gh pr create/view/list/checks`, and `tail/head/wc/grep`. Everything else is refused with a reason the session acts on: the default branch, force, delete, `--all/--tags/--mirror`, a bare `git push`, `gh pr merge`, chained commands, substitution, heredocs, redirects to files, `git -C/-c`, env prefixes, every non-Bash prompt. It never overrides a deny rule and never grants beyond the one call; its parser fails closed; locally it prints nothing. Prefix and on/off: `CLOUD_BRANCH_PREFIX`, `CLOUD_PUBLISH` in `.claude/ios.env`.
+4. **GitHub's ruleset** (`scripts/ai/protect-main.sh`): the only layer that holds for every tool and person, because GitHub enforces it. Needs a public repo, or GitHub Pro/Team for a private one; the script says so if not.
 
-`tests/cloud_gate.py` holds the table (45 cases: the exact command a real cloud session stalled on, and every refusal above), each run through the hook process as a cloud session and again locally.
+`scripts/ai/pr.sh` pushes without a prompt (it is one of the kit's own scripts, which the rules allow), and it can only push a non-default branch.
+
+## Tested
+
+`tests/run.sh` runs 24 hook cases, 45 cloud-gate cases (each through the hook process as a cloud session and again locally, including the exact command a real cloud session stalled on), 16 `pr.sh` cases against a local bare remote, 18 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
+
+- **Bootstrap:** from a fresh install to a passing smoke test.
+- **`/verify`:** all gates. The visual gate caught a blank empty state every mechanical gate passed, and two text clips at the largest text size.
+- **The release gate:** fails a fresh app on 3 real submission blockers.
+- **The Stop hook:** blocked a broken build in a live session and showed the exact error.
+- **Cloud sessions:** one ran to an open PR with no prompt; one told to push to `main` left it untouched and pushed its own branch.
+- **Parallel worktrees:** two test runs at once, each on its own simulator.
+- **Xcode device interaction:** start a session, launch, assert the hierarchy, in both directions.
 
 ## Requirements and limits
 
-- **Machine:** macOS with Xcode 27 selected, and python3 (ships with Xcode's command-line tools).
-- **Trust the repo once:** open Claude Code in it interactively and accept the workspace trust dialog. Until then, headless runs ignore the committed permission rules (hooks still run).
-- **Xcode MCP:** the path needs Xcode running. The first `XcodeOpenWorkspace` asks you to approve the agent. Without Xcode, assertions are reported as skipped, never as passed.
+- **Machine:** macOS with Xcode 27 selected, python3 (ships with Xcode's command-line tools), the GitHub CLI for `pr.sh` and `protect-main.sh`.
 - **Simulator only:** device-only behavior (push delivery, CloudKit between accounts, camera, performance on old hardware) is listed in the report as not verified.
+- **Cloud sessions have no Xcode:** they do docs, scripts, String Catalogs and mechanical refactors, say "not compiled with Xcode", and their branch runs `/verify` on a Mac before it merges.

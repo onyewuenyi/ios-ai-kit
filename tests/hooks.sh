@@ -33,4 +33,16 @@ check "stop check blocks a failing check locally" "$(echo "{\"cwd\":\"$fr\"}" | 
 check "stop check is silent in a cloud session" "$(echo "{\"cwd\":\"$fr\"}" | CLAUDE_CODE_REMOTE=true sc 2>/dev/null | tail -1)" rc=0
 nox=$(mktemp -d); for t in git python3 bash; do ln -s "$(command -v $t)" "$nox/$t"; done
 check "stop check is silent without xcodebuild" "$(echo "{\"cwd\":\"$fr\"}" | PATH="$nox" sc 2>/dev/null | tail -1)" rc=0
+# pushes to the default branch are refused everywhere (a PR is the only way in)
+gr=$(mktemp -d); git init -q --bare -b main "$gr/r.git"; git clone -q "$gr/r.git" "$gr/a" 2>/dev/null
+(cd "$gr/a" && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m x && git push -q origin HEAD:main && git remote set-head origin -a >/dev/null)
+gd() { (cd "$gr/a" && ev Bash command "$1" | dec); }
+check "push origin main is denied" "$(gd 'git push origin main')" deny
+check "push HEAD:main is denied" "$(gd 'git add -A && git push -u origin HEAD:main')" deny
+check "force push +main is denied" "$(gd 'git push --force origin +main')" deny
+check "bare push while on main is denied" "$(gd 'git push')" deny
+check "push of a feature branch is allowed" "$(gd 'git push -u origin claude/fix-thing')" allow
+check "a commit message naming git push main is allowed" "$(gd 'git commit -m \"never git push origin main\"')" allow
+(cd "$gr/a" && git switch -qc claude/x)
+check "bare push on a feature branch is allowed" "$(gd 'git push')" allow
 echo "$pass passed, $fail failed"; exit $fail

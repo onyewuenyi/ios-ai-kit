@@ -3,6 +3,7 @@
 here=$(cd "$(dirname "$0")" && pwd); bad=0
 echo "hooks"; "$here/hooks.sh" || bad=1
 echo "cloud gate"; python3 "$here/cloud_gate.py" || bad=1
+echo "pr"; "$here/pr.sh" || bad=1
 echo "installer"; "$here/install.sh" || bad=1
 echo "syntax"
 for f in "$here"/../template/scripts/ai/*.sh "$here"/../template/.claude/hooks/*.sh; do /bin/bash -n "$f" || { echo "  FAIL $f"; bad=1; }; done

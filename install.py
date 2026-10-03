@@ -249,6 +249,9 @@ def main() -> int:
     merge_lines(repo, ".worktreeinclude", include, a.dry_run)
     print("\n".join("  " + l.replace(str(repo) + "/", "") for l in log))
     print(f"\n{'(dry run: nothing written) ' if a.dry_run else ''}Next: cd {repo} && scripts/ai/bootstrap.sh")
+    print("Then: scripts/ai/doctor.sh lists the steps only you can take (trust the folder, gh auth login,\n"
+          "      scripts/ai/protect-main.sh). Propose these files like any change: commit on a branch,\n"
+          "      then scripts/ai/pr.sh. Never push to the default branch.")
     return 0
 
 
