@@ -16,7 +16,7 @@ copy_includes() {  # gitignored files the build needs (secrets plists, local con
     done < "$AI_ROOT/.worktreeinclude"
   fi
   local f="$dir/.claude/ios.local.env"  # a copied record must never point at this checkout's simulator
-  if [[ -f $f ]]; then grep -v '^SIM_UDID=' "$f" > "$f.tmp"; mv "$f.tmp" "$f"; fi
+  if [[ -f $f ]]; then grep -v "^SIM_UDID=" "$f" > "$f.tmp" || true; mv "$f.tmp" "$f"; fi
 }
 case ${1:-} in
 new)
