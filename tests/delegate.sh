@@ -51,6 +51,7 @@ out=$(scripts/ai/worktree.sh pr 5 2>&1); dir="$w/app-pr5"
 ok "checks out the PR's existing branch in its own worktree" '[[ -d $dir && $(git -C "$dir" rev-parse --abbrev-ref HEAD) == claude/feature ]]'
 ok "the branch tracks origin, so a push updates the PR" '[[ $(git -C "$dir" rev-parse --abbrev-ref @{u}) == origin/claude/feature ]]'
 out=$(scripts/ai/worktree.sh pr 5 2>&1)
+ok "no stray ios.local.env.tmp is left behind" '[[ ! -e $dir/.claude/ios.local.env.tmp ]]'
 ok "a second call reuses it (steer, don't respawn)" '[[ $out == *"existing, PR #5"* ]]'
 out=$(scripts/ai/worktree.sh pr 9 2>&1)
 ok "a PR that is not open is refused" '[[ $out == *"not open"* ]]'
