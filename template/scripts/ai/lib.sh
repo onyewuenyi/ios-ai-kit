@@ -104,6 +104,18 @@ ensure_sim() {
 }
 
 # Every file this change touches: modified, staged and untracked, relative to the repo root.
+# Another xcodebuild already using this checkout's DerivedData (a background /verify, a test run):
+# a second one fails with "database is locked", which reads like a broken build.
+dd_busy() { pgrep -f "xcodebuild.*-derivedDataPath $DD( |$)" >/dev/null 2>&1; }
+wait_dd() {  # wait for it (up to BUILD_WAIT seconds, default 900) instead of failing
+  dd_busy || return 0
+  say "another build or test is using this checkout's DerivedData; waiting for it (up to ${BUILD_WAIT:-900}s)"
+  local waited=0
+  while dd_busy && (( waited < ${BUILD_WAIT:-900} )); do sleep 5; waited=$((waited + 5)); done
+  dd_busy && die "still busy after ${waited}s: let it finish (pgrep -fl xcodebuild), or set BUILD_WAIT"
+  return 0
+}
+
 # Where this branch left the default branch: the scope of "this change" for every gate. On the
 # default branch with nothing ahead it is HEAD, so the scope is just the uncommitted work. Without it,
 # a branch whose work was already committed (the state before pr.sh, and every PR the lead verifies)

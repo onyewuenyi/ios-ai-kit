@@ -16,6 +16,15 @@ ok "untracked work is in scope too" '[[ $(cf) == *App/C.swift* && $(cf) == *App/
 ok "the base is where the branch left main" '[[ $( (source scripts/ai/lib.sh; base_commit) ) == $(git merge-base HEAD origin/main) ]]'
 out=$(python3 scripts/ai/blast-radius.py --diff "$(git merge-base HEAD origin/main)" --src App 2>&1)
 ok "blast radius sees the branch's committed Swift change" '[[ $out != *"No Swift changes"* ]]'
+dd=$( (source scripts/ai/lib.sh; echo "$DD") )
+python3 -c 'import time; time.sleep(20)' xcodebuild build -derivedDataPath "$dd" -scheme App & fake=$!
+sleep 1
+out=$(scripts/ai/check.sh 2>&1)
+ok "the Stop check skips while another build holds this DerivedData" '[[ $out == *"skipped, a build or test is already running"* ]]'
+out=$( (source scripts/ai/lib.sh; BUILD_WAIT=2 wait_dd) 2>&1 )
+ok "a build waits for it, then says plainly it is still busy" '[[ $out == *"waiting for it"* && $out == *"still busy"* ]]'
+kill $fake 2>/dev/null; wait $fake 2>/dev/null
+ok "free again: nothing waits" '( source scripts/ai/lib.sh; ! dd_busy )'
 git remote remove origin
 ok "with no remote, the scope falls back to uncommitted work" '[[ $(cf) == *App/C.swift* && $(cf) != *App/B.swift* ]]'
 echo "$pass passed, $fail failed"; exit $fail
