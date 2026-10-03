@@ -24,4 +24,5 @@ The kit's files live next to this skill: the installer is `../../install.py` rel
    - `scripts/ai/protect-main.sh` (GitHub refuses direct pushes, force pushes and deletion of the default branch): offer to run it, and run it only on a yes, since it changes the repository's settings;
    - `/web-setup` or the Claude GitHub App, for cloud sessions;
    - Xcode ▸ Settings ▸ Intelligence ▸ Xcode Tools on, and approve the agent the first time `/verify` opens the project.
-6. **Propose the install.** The new files go in through a pull request like every other change: commit them on a branch (`git switch -c claude/ios-ai-kit`, `git add` by path, commit) and run `scripts/ai/pr.sh`. Do not push to the default branch.
+6. **Offer the status line** (one question): the branch, HEAD's verify state and the PRs that need you, always under the prompt. On a yes: `python3 <base>/../../install.py "$(git rev-parse --show-toplevel)" --statusline` (this Mac only; it never replaces a status line already set).
+7. **Propose the install.** The new files go in through a pull request like every other change: commit them on a branch (`git switch -c claude/ios-ai-kit`, `git add` by path, commit) and run `scripts/ai/pr.sh`. Do not push to the default branch.

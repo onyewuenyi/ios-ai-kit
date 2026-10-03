@@ -68,6 +68,7 @@ It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR
 
 - **Session-start bearings** (a `SessionStart` hook): only what is off, in a few lines: commits on the default branch that never went through a PR, uncommitted work, HEAD unverified or failing, PRs that need you (from the lead's cached digest, with its age), doctor warnings, a stale healthcheck. Git and files only, under a second, silent when all is well.
 - **`/friction`**: what keeps costing this repo's sessions time, read from its Claude Code transcripts and verify history: exact read-only commands no rule allows, rejected calls, repeated hook refusals, Stop-hook build failures, recurring compiler errors, flaky tests, gates whose median grew, and on Mondays oversized outputs, re-read files and token use. You pick; each accepted fix lands with a test, through a PR. `/lead` runs it quietly each weekday.
+- **Status line** (opt-in per developer: `python3 install.py <repo> --statusline`, or `/ios-ai-kit:setup` and say yes): `⎇ claude/topic · ✓ verified 3171e3c · 2 PRs need you · 3 uncommitted`, always under the prompt. Git and files only, about 0.1 s; written to the gitignored `.claude/settings.local.json` and never over a status line you already have.
 - **Verify history:** every gate and failing test of every `/verify`, per commit, shared by all worktrees (`python3 scripts/ai/history.py last | flips | stats`). It is how the lead knows a PR is verified at its head and how friction finds flakes.
 
 ## Playbooks, review and lessons

@@ -191,6 +191,18 @@ def merge_claude_md(repo: Path, d: dict, dry: bool) -> None:
     merge_block(repo / "CLAUDE.md", block, "# CLAUDE.md\n\n" + block, dry, "CLAUDE.md (ios-ai-kit block)")
 
 
+def add_statusline(repo: Path, dry: bool) -> None:
+    """Opt-in, per developer: the workflow's status line in .claude/settings.local.json (gitignored),
+    never over a status line already set there."""
+    path = repo / ".claude/settings.local.json"
+    cur = json.loads(path.read_text()) if path.exists() else {}
+    if "statusLine" in cur:
+        log.append("kept     .claude/settings.local.json (it already sets a status line)")
+        return
+    cur["statusLine"] = {"type": "command", "command": f'python3 "{repo.resolve()}/scripts/ai/statusline.py"'}
+    write(path, json.dumps(cur, indent=2) + "\n", dry, "merged" if path.exists() else "added")
+
+
 def merge_docs(repo: Path, dry: bool) -> None:
     fresh = (KIT / "docs/ai-workflow.md").read_text()
     block = fresh[fresh.index(BEGIN):fresh.index(END) + len(END)] + "\n"
@@ -269,6 +281,7 @@ def main() -> int:
     ap.add_argument("--scheme")
     ap.add_argument("--container")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--statusline", action="store_true", help="also show the workflow status line (this Mac only)")
     a = ap.parse_args()
     repo = Path(a.repo).resolve()
     d = detect(repo, a.scheme, a.container)
@@ -284,6 +297,8 @@ def main() -> int:
     merge_mcp(repo, a.dry_run)
     merge_claude_md(repo, d, a.dry_run)
     merge_docs(repo, a.dry_run)
+    if a.statusline:
+        add_statusline(repo, a.dry_run)
     ensure_swift_format(repo, d, a.dry_run)
     merge_lines(repo, ".gitignore", GITIGNORE, a.dry_run)
     include = ["CLAUDE.local.md"] + [str(p.relative_to(repo)) for p in repo.glob("**/GoogleService-Info.plist")

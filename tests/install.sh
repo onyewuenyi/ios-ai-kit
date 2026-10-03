@@ -49,6 +49,14 @@ ok "an unedited earlier kit version is replaced whole" 'grep -q "ios-ai-kit:begi
 printf '# Ours\nHand-written.\n' > "$r/docs/ai-workflow.md"; out=$(python3 "$kit/install.py" "$r" 2>&1)
 ok "an edited doc without markers is kept and named" '[[ $(cat "$r/docs/ai-workflow.md") == *"Hand-written."* && $out == *"kept     docs/ai-workflow.md"* ]]'
 
+echo "status line (opt-in)"
+r=$(fresh); python3 "$kit/install.py" "$r" >/dev/null 2>&1
+ok "not installed unless asked" '[[ ! -f "$r/.claude/settings.local.json" ]] || ! grep -q statusLine "$r/.claude/settings.local.json"'
+python3 "$kit/install.py" "$r" --statusline >/dev/null 2>&1
+ok "--statusline writes it to the gitignored local settings" 'grep -q "scripts/ai/statusline.py" "$r/.claude/settings.local.json" && ! grep -q statusLine "$r/.claude/settings.json"'
+printf '{"statusLine":{"type":"command","command":"mine"}}\n' > "$r/.claude/settings.local.json"; python3 "$kit/install.py" "$r" --statusline >/dev/null 2>&1
+ok "an existing status line is never replaced" 'grep -q "\"mine\"" "$r/.claude/settings.local.json"'
+
 echo "workspace projects"
 r=$(fresh); mkdir -p "$r/App.xcworkspace"
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version="1.0"><FileRef location="group:Plantly.xcodeproj"></FileRef></Workspace>\n' > "$r/App.xcworkspace/contents.xcworkspacedata"

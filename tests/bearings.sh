@@ -37,4 +37,13 @@ ok "…and is quiet once it ran" '[[ $(ctx) != *"/friction"* ]]'
 ok "silent in a cloud session" '[[ -z $(echo "{}" | CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR="$w/app" python3 .claude/hooks/bearings.py) ]]'
 ok "garbage input still exits 0" 'echo nope | CLAUDE_PROJECT_DIR="$w/app" python3 .claude/hooks/bearings.py >/dev/null'
 ok "a repo without the kit is ignored" '[[ -z $(echo "{}" | CLAUDE_PROJECT_DIR=/tmp python3 .claude/hooks/bearings.py) ]]'
+# the status line: the same facts, always in view
+sl() { echo "{\"workspace\":{\"current_dir\":\"$w/app\"}}" | python3 scripts/ai/statusline.py | sed $'s/\033\\[[0-9;]*m//g'; }
+ok "status line: the branch and HEAD's verify state" '[[ $(sl) == "⎇ claude/topic"*"✓ verified"* ]]'
+printf '%s\tr3\t%s\tclaude/topic\t0\ttests\tFAIL\t3\tx\n' "$(date +%s)" "$(git rev-parse HEAD)" >> "$sd/verify.tsv"
+ok "status line: a failed gate is named" '[[ $(sl) == *"✗ tests failed"* ]]'
+ok "status line: PRs that need you" '[[ $(sl) == *"1 PR need you"* ]]'
+python3 -c "import json,time; json.dump({'generated': time.time()-30000, 'items': [{'number': 40, 'bucket': 'needs-you', 'action': 'merge-ready'}]}, open('$sd/prs.json','w'))"
+ok "status line: an old digest says how old" '[[ $(sl) == *"(8h old: /lead)"* ]]'
+ok "status line: outside a git repo it prints nothing" '[[ -z $(echo "{\"workspace\":{\"current_dir\":\"/\"}}" | python3 scripts/ai/statusline.py) ]]'
 echo "$pass passed, $fail failed"; exit $fail
