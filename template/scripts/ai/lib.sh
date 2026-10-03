@@ -104,8 +104,18 @@ ensure_sim() {
 }
 
 # Every file this change touches: modified, staged and untracked, relative to the repo root.
-changed_files() {
-  { git -C "$AI_ROOT" diff --name-only HEAD 2>/dev/null; git -C "$AI_ROOT" ls-files --others --exclude-standard 2>/dev/null; } | sort -u
+# Where this branch left the default branch: the scope of "this change" for every gate. On the
+# default branch with nothing ahead it is HEAD, so the scope is just the uncommitted work. Without it,
+# a branch whose work was already committed (the state before pr.sh, and every PR the lead verifies)
+# had its format and reach gates check nothing and pass.
+base_commit() {
+  local ref; ref=$(git -C "$AI_ROOT" symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || true)
+  if [[ -n $ref ]] && git -C "$AI_ROOT" merge-base HEAD "$ref" 2>/dev/null; then return; fi
+  echo HEAD
+}
+changed_files() {  # committed on this branch + uncommitted + untracked, relative to the repo root
+  local base; base=$(base_commit)
+  { git -C "$AI_ROOT" diff --name-only "$base" 2>/dev/null; git -C "$AI_ROOT" ls-files --others --exclude-standard 2>/dev/null; } | sort -u
 }
 
 app_path() {  # the built .app for the simulator, from this checkout's DerivedData

@@ -45,4 +45,10 @@ check "push of a feature branch is allowed" "$(gd 'git push -u origin claude/fix
 check "a commit message naming git push main is allowed" "$(gd 'git commit -m \"never git push origin main\"')" allow
 (cd "$gr/a" && git switch -qc claude/x)
 check "bare push on a feature branch is allowed" "$(gd 'git push')" allow
+(cd "$gr/a" && git switch -q main)
+nl=$'\n'
+check "a push to main inside text written by cat is allowed" "$(gd "cat > t.sh <<'EOF'${nl}git push -q origin HEAD:main${nl}EOF${nl}chmod +x t.sh")" allow
+check "a push to main inside text written by tee is allowed" "$(gd "tee t.sh <<EOF${nl}git push origin main${nl}EOF")" allow
+check "a push to main in a heredoc fed to bash is denied" "$(gd "bash <<'EOF'${nl}git push origin main${nl}EOF")" deny
+check "a real push after a written heredoc is still denied" "$(gd "cat > t <<'EOF'${nl}x${nl}EOF${nl}git push origin main")" deny
 echo "$pass passed, $fail failed"; exit $fail
