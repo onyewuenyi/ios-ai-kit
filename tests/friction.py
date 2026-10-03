@@ -82,6 +82,7 @@ check("allow: a read-only subcommand in 2+ sessions, 5+ times", "`git fetch …`
 check("allow: a command an allow rule covers is not proposed", "git log" not in ev, True)
 check("rejected: named by the real command, not the cd before it", "rejected 2 times: Bash: gh pr" in ev, True)
 check("guard: the same refusal 3+ times", any(k == "guard" for k in kinds) and "4 refusals" in ev, True)
+check("guard: shows the commands it refused", "refused: `git push origin main`" in ev, True)
 check("stop: the Stop hook's build check failing 3+ turns", "failed 4 turns" in ev, True)
 check("build-error: the same error in 2+ sessions, line numbers stripped", "cannot find _ in scope" in ev, True)
 check("waste: oversized outputs", "tool outputs over 20k characters from `cat`" in ev, True)
