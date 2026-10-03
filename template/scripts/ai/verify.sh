@@ -18,7 +18,9 @@ for a in "$@"; do case $a in --no-visual) novisual=1;; --no-tests) notests=1;; -
 rep="$BUILD_DIR/verify"; rm -rf "$rep"; mkdir -p "$rep"
 rows=(); fail=0
 sha=$(git rev-parse HEAD 2>/dev/null || echo none); branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)
-dirty=$([[ -n $(git status --porcelain --untracked-files=no 2>/dev/null) ]] && echo 1 || echo 0)
+# dirty = an uncommitted change that could alter the build or the tests. Markdown cannot, and a
+# shared checkout often holds another session's notes (a TODO.md), which must not void every run.
+dirty=$([[ -n $(git status --porcelain --untracked-files=no 2>/dev/null | grep -vE '\.md"?$') ]] && echo 1 || echo 0)
 run_id=$(date +%Y%m%d%H%M%S)-$$; hist="$(state_dir)/verify.tsv"
 record() {  # record <gate> <result> <secs> <summary>: one line, one append, safe beside other worktrees
   local summary=${4//$'\t'/ }; summary=${summary//$'\n'/ }

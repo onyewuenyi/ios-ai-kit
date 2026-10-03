@@ -32,6 +32,9 @@ ok "fail then pass on the same commit is a flip (a flake)" 'H flips | grep -q "S
 echo x >> scripts/ai/format.sh; v
 ok "a dirty tree is recorded and never counts as verified" '[[ $(tail -1 "$hist" | cut -f5) == 1 ]] && ! H verified "$sha"'
 git checkout -q scripts/ai/format.sh
+echo "notes" >> README.md 2>/dev/null || echo "notes" > README.md; git add README.md 2>/dev/null; g commit -qm readme; echo "more notes" >> README.md; v
+ok "an uncommitted Markdown note does not make the run dirty" '[[ $(tail -1 "$hist" | cut -f5) == 0 ]]'
+git checkout -q README.md
 
 rm -rf .build
 ok "history survives rm -rf .build" '[[ -s "$hist" ]]'
