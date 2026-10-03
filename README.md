@@ -126,7 +126,7 @@ Four layers; each says what it does NOT guarantee.
 
 ## Migrating from ios-stack
 
-ios-stack, the earlier plugin, is retired: everything worth keeping moved here. Its playbooks and principles are in `ios-loop`; `/ios-stack:interrogate` and `/ios-stack:reflect` are `/interrogate` and `/reflect`; `create-verify-skill` became `/map` (one verify path, the kit's `/verify`); its session bearings became the SessionStart hook; its evidence ledger became the verify history. Its turn-end guard, statusline, crash monitor and builder/verifier agents were dropped (the Stop hook, `sim.sh crashes` and `ui-verify` cover them). Uninstall it (`claude plugin uninstall ios-stack`) once the kit is installed: both together run two sets of session and Stop hooks, and `doctor.sh` warns while it is still enabled.
+ios-stack, the earlier plugin, is retired: everything worth keeping moved here. Its playbooks and principles are in `ios-loop`; `/ios-stack:interrogate` and `/ios-stack:reflect` are `/interrogate` and `/reflect`; `create-verify-skill` became `/map` (one verify path, the kit's `/verify`); its session bearings became the SessionStart hook; its evidence ledger became the verify history. Its turn-end guard, statusline, crash monitor and builder/verifier agents were dropped (the Stop hook, `sim.sh crashes` and `ui-verify` cover them). Uninstall it once the kit is installed: `claude plugin uninstall ios-stack --scope <user|project|local>`, the scope it was installed at (`doctor.sh` names it): both together run two sets of session and Stop hooks, and `doctor.sh` warns while it is still enabled.
 
 ## Requirements and limits
 
