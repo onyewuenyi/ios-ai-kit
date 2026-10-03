@@ -165,10 +165,20 @@ def merge_claude_md(repo: Path, d: dict, dry: bool) -> None:
         write(path, new, dry, "merged" if path.exists() else "added")
 
 
+CLOUD_ENV = ["# Cloud sessions (no human to answer a prompt): the gate pushes only branches under this prefix",
+             "# and opens a PR; CLOUD_PUBLISH=0 refuses every push there (you publish by hand).",
+             "CLOUD_BRANCH_PREFIX=claude/", "CLOUD_PUBLISH=1"]
+
+
 def write_env(repo: Path, d: dict, dry: bool) -> None:
     path = repo / ".claude/ios.env"
     if path.exists():
-        log.append("kept     .claude/ios.env (edit it to change detected values)")
+        text = path.read_text()
+        add = [l for l in CLOUD_ENV if l.startswith("#") or l.split("=")[0] + "=" not in text]
+        if any(not l.startswith("#") for l in add):
+            write(path, text.rstrip("\n") + "\n" + "\n".join(add) + "\n", dry, "extended")
+        else:
+            log.append("kept     .claude/ios.env (edit it to change detected values)")
         return
     lines = ["# ios-ai-kit configuration (committed). Per-checkout values go in .claude/ios.local.env (gitignored).",
              f"{'WORKSPACE' if d['kind'] == '-workspace' else 'PROJECT'}={d['container']}",
@@ -176,7 +186,7 @@ def write_env(repo: Path, d: dict, dry: bool) -> None:
              "DEVICE_MODEL=iPhone 17 Pro", "MIN_XCODE=27", f"SOURCE_DIRS={d['source_dirs']}",
              f"TEST_FLAGS={'-parallel-testing-enabled NO' if d['serial_tests'] else ''}",
              "# Passed on every launch (guard, visual, xcui): a fixture seed or skip-onboarding flag, if the app needs one.",
-             "BASE_LAUNCH_ARGS="]
+             "BASE_LAUNCH_ARGS=", *CLOUD_ENV]
     write(path, "\n".join(lines) + "\n", dry, "added")
 
 

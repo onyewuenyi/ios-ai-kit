@@ -11,9 +11,10 @@ echo "fresh project"
 r=$(fresh); out=$(python3 "$kit/install.py" "$r" 2>&1)
 ok "detects project, scheme, bundle and synchronized folders" '[[ $out == *"Plantly.xcodeproj · scheme Plantly · dev.example.Plantly · iOS 27.0 · synchronized folders"* ]]'
 ok "writes ios.env with the scheme" 'grep -qx "SCHEME=Plantly" "$r/.claude/ios.env"'
+ok "ios.env carries the cloud gate defaults" 'grep -qx "CLOUD_BRANCH_PREFIX=claude/" "$r/.claude/ios.env" && grep -qx "CLOUD_PUBLISH=1" "$r/.claude/ios.env"'
 ok "every kit script is executable" '[[ -z $(find "$r/scripts/ai" -name "*.sh" ! -perm -u+x) ]]'
 ok "CLAUDE.md has exactly one kit block" '[[ $(grep -c "ios-ai-kit:begin" "$r/CLAUDE.md") == 1 ]]'
-ok "settings has the three hook events and worktree.baseRef head" 'python3 -c "import json,sys;d=json.load(open(\"$r/.claude/settings.json\"));assert set(d[\"hooks\"])=={\"PreToolUse\",\"PostToolUse\",\"Stop\"} and d[\"worktree\"][\"baseRef\"]==\"head\""'
+ok "settings has the four hook events and worktree.baseRef head" 'python3 -c "import json,sys;d=json.load(open(\"$r/.claude/settings.json\"));assert set(d[\"hooks\"])=={\"PreToolUse\",\"PostToolUse\",\"PermissionRequest\",\"Stop\"} and d[\"worktree\"][\"baseRef\"]==\"head\""'
 ok ".gitignore has the local-only paths" 'grep -qx ".claude/ios.local.env" "$r/.gitignore" && grep -qx ".build/" "$r/.gitignore"'
 ok ".swift-format matches the code (4 spaces)" 'python3 -c "import json;assert json.load(open(\"$r/.swift-format\"))[\"indentation\"][\"spaces\"]==4"'
 again=$(python3 "$kit/install.py" "$r" 2>&1)
@@ -26,10 +27,12 @@ cat > "$r/.claude/settings.json" <<'J'
  "hooks":{"PostToolUse":[{"matcher":"Edit","hooks":[{"type":"command","command":"xcrun swift-format --in-place \"$f\""}]}]}}
 J
 printf '# Team rules\n\nKeep this line.\n' > "$r/CLAUDE.md"
-out=$(python3 "$kit/install.py" "$r" 2>&1)
+printf 'PROJECT=Plantly.xcodeproj\nSCHEME=Custom\n' > "$r/.claude/ios.env"
+out=$(python3 "$kit/install.py" "$r" 2>&1); python3 "$kit/install.py" "$r" >/dev/null 2>&1
 ok "team rules and plugins survive" 'python3 -c "import json;d=json.load(open(\"$r/.claude/settings.json\"));assert \"Bash(make:*)\" in d[\"permissions\"][\"allow\"] and d[\"enabledPlugins\"]=={\"x@y\":True}"'
 ok "an existing swift-format hook is kept and ours skipped" '[[ $out == *"skipped  format hook"* ]] && [[ $(grep -c format-swift.sh "$r/.claude/settings.json") == 0 ]]'
 ok "retired wrong rules are removed on upgrade" '! grep -q XcodeListWindows "$r/.claude/settings.json"'
+ok "an older ios.env gains the cloud keys once, its values kept" 'grep -qx "SCHEME=Custom" "$r/.claude/ios.env" && [[ $(grep -c "^CLOUD_BRANCH_PREFIX=" "$r/.claude/ios.env") == 1 && $(grep -c "^CLOUD_PUBLISH=" "$r/.claude/ios.env") == 1 ]]'
 ok "existing CLAUDE.md content is kept" 'grep -q "Keep this line." "$r/CLAUDE.md"'
 sed -i '' 's/## iOS loop (ios-ai-kit)/## STALE/' "$r/CLAUDE.md"; python3 "$kit/install.py" "$r" >/dev/null 2>&1
 ok "an upgrade replaces the block in place" '! grep -q "## STALE" "$r/CLAUDE.md" && [[ $(grep -c "ios-ai-kit:begin" "$r/CLAUDE.md") == 1 ]]'

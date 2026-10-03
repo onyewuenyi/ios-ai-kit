@@ -25,6 +25,7 @@ cd /path/to/YourApp && scripts/ai/bootstrap.sh               # once per Mac: too
 | **`/verify`** | Six gates, written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. 7, with `--release`, the **release gate** (`release.sh`): the Release build, or a real `.xcarchive`, audited for submission blockers (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). |
 | **Stop hook** | A turn that changed code can't end on a broken build: format lint plus an incremental build, cached per change. It blocks once, and never loops. |
 | **Guard hook** | Denies a simulator destination with no runtime, and `simctl … booted` when more than one simulator is booted. Asks before erasing every simulator or editing a committed Core Data model version. |
+| **Cloud gate** | Cloud sessions run unattended to a pushed `claude/*` branch and an open PR; every other push, merge or approval-needing step is refused with a reason instead of stalling on a prompt. Silent locally. See **Security model**. |
 | **One simulator per checkout** | Created on first use, recorded with its owning path, addressed by UDID. Worktrees, including Claude Code's own `--worktree`, never share a device. `destroy` refuses to delete another checkout's simulator. |
 | **`ios-loop` skill** | The development loop, Xcode MCP versus shell (with Xcode 27's measured behavior), bug fixes, two-pass UI work, parallel worktrees, and routing work to cloud sessions. |
 | **UI assertions** | `xcui.py` launches the build the kit already made, by UDID, then attaches a *device-only* Xcode interaction session to read the live UI hierarchy. It doesn't use `InstallAndRun`: on a large project, Xcode dropped that session mid-build and kept the simulator locked to it. |
@@ -33,7 +34,7 @@ cd /path/to/YourApp && scripts/ai/bootstrap.sh               # once per Mac: too
 
 ## Tested
 
-`tests/run.sh` runs 14 hook cases, 16 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. It was proven live on a brand-new app (Plantly) and on Project Ezra, a real app with about 1,070 tests:
+`tests/run.sh` runs 17 hook cases, 45 cloud-gate cases, 18 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. It was proven live on a brand-new app (Plantly) and on Project Ezra, a real app with about 1,070 tests:
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates.
@@ -42,6 +43,16 @@ cd /path/to/YourApp && scripts/ai/bootstrap.sh               # once per Mac: too
 - **The Stop hook:** live in Claude Code, it blocked a broken build and showed the exact error.
 - **Parallel worktrees:** two test runs at once, each on its own simulator.
 - **Xcode device interaction:** start a session, install and run, assert the hierarchy, in both directions.
+
+## Security model
+
+Three layers; each says what it does NOT guarantee.
+
+1. **Permission rules and the guard hook** (`.claude/settings.json`, `guard.py`): pushes, `rm -rf` and `.pbxproj` edits ask a human; secrets are denied to reads; ambiguous simulator targets are denied. They run first, everywhere. They do not stop a human who approves the wrong thing.
+2. **The cloud gate** (`cloud-gate.py`, a `PermissionRequest` hook). It runs only where a prompt would otherwise appear, and only in a cloud session (`CLAUDE_CODE_REMOTE=true`), where nobody is there to answer and an unanswered prompt stalls the session forever. It approves, for one call, a command made only of `git add/commit/status/diff/log/show/fetch/rev-parse`, `git push` of explicit `claude/*` refspecs to `origin` (flags limited to `-u`, `-q`, `-v`), `gh pr create/view/list/checks`, and `tail/head/wc/grep`. Everything else is refused with a reason the session acts on: the default branch, force, delete, `--all/--tags/--mirror`, a bare `git push`, `gh pr merge`, chained commands, substitution, heredocs, redirects to files, `git -C/-c`, env prefixes, every non-Bash prompt. Its parser fails closed; locally it prints nothing. It is enforced by Claude Code, not by GitHub: GitHub's proxy for cloud sessions does not limit which branches a push updates.
+3. **GitHub's own lock** (`scripts/ai/protect-main.sh`, run by the owner): a ruleset on the default branch that refuses force pushes and deletion for every actor, plus `--require-pr` to refuse direct pushes. `doctor.sh` reports whether it is in place. Needs a public repo or GitHub Pro/Team.
+
+`tests/cloud_gate.py` holds the table (45 cases: the exact command a real cloud session stalled on, and every refusal above), each run through the hook process as a cloud session and again locally.
 
 ## Requirements and limits
 

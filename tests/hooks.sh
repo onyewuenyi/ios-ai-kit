@@ -27,4 +27,10 @@ sc() { python3 "$k/stop-check.py"; echo "rc=$?"; }
 check "stop check yields when stop_hook_active" "$(echo '{"stop_hook_active":true,"cwd":"/tmp"}' | sc 2>/dev/null | tail -1)" rc=0
 check "stop check is silent outside a kit repo" "$(echo "{\"cwd\":\"$repo\"}" | sc 2>/dev/null | tail -1)" rc=0
 check "stop check can be turned off" "$(echo "{\"cwd\":\"$repo\"}" | IOS_AI_STOP_CHECK=0 sc 2>/dev/null | tail -1)" rc=0
+# stop-check in the cloud / without Xcode: a failing check must not block (nothing there can build)
+fr=$(mktemp -d); git -C "$fr" init -q; mkdir -p "$fr/scripts/ai"; printf '#!/bin/bash\necho "error: broken"; exit 1\n' > "$fr/scripts/ai/check.sh"
+check "stop check blocks a failing check locally" "$(echo "{\"cwd\":\"$fr\"}" | sc 2>/dev/null | tail -1)" rc=2
+check "stop check is silent in a cloud session" "$(echo "{\"cwd\":\"$fr\"}" | CLAUDE_CODE_REMOTE=true sc 2>/dev/null | tail -1)" rc=0
+nox=$(mktemp -d); for t in git python3 bash; do ln -s "$(command -v $t)" "$nox/$t"; done
+check "stop check is silent without xcodebuild" "$(echo "{\"cwd\":\"$fr\"}" | PATH="$nox" sc 2>/dev/null | tail -1)" rc=0
 echo "$pass passed, $fail failed"; exit $fail
