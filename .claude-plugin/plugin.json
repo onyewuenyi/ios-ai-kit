@@ -13,5 +13,8 @@
     "verification",
     "pull-request",
     "cloud-sessions"
-  ]
+  ],
+  "license": "MIT",
+  "repository": "https://github.com/onyewuenyi/ios-ai-kit",
+  "homepage": "https://github.com/onyewuenyi/ios-ai-kit#readme"
 }

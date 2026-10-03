@@ -7,7 +7,7 @@ A Claude Code workflow for iOS repositories in which "done" is proven on a real 
 **From the Claude Code plugin marketplace (recommended).** In Claude Code:
 
 ```
-/plugin marketplace add OWNER/ios-ai-kit
+/plugin marketplace add onyewuenyi/ios-ai-kit
 /plugin install ios-ai-kit@ios-ai-kit
 ```
 
@@ -16,7 +16,7 @@ Then, inside your iOS repo, run **`/ios-ai-kit:setup`**. It installs the kit int
 **From GitHub.**
 
 ```bash
-git clone https://github.com/OWNER/ios-ai-kit ~/ios-ai-kit
+git clone https://github.com/onyewuenyi/ios-ai-kit ~/ios-ai-kit
 python3 ~/ios-ai-kit/install.py /path/to/YourApp   # detects project/workspace, scheme, bundle id, deployment target
 cd /path/to/YourApp && scripts/ai/bootstrap.sh     # once per Mac: toolchain, Apple's skills, simulator, smoke test
 ```
@@ -37,7 +37,6 @@ The kit automates everything it can. These steps need a person, a browser, or a 
 | Once per repo (owner) | `scripts/ai/protect-main.sh` | Changes your repository's settings on GitHub. It adds a ruleset: changes reach the default branch only through pull requests, no force push, no deletion, for everyone including you and any agent. `--allow-direct-push` keeps only the last two | yes |
 | Once per repo (owner) | `/web-setup` in Claude Code, or install the Claude GitHub App on the repo | Grants GitHub access to cloud sessions in a browser | no |
 | Once per Mac (optional) | Xcode ▸ Settings ▸ Intelligence ▸ Model Context Protocol ▸ **Xcode Tools** on, and approve the agent when Xcode asks the first time `/verify` opens the project | An Xcode setting and an approval dialog only you can click. Without it, UI assertions are reported as skipped, never as passed | Xcode running: yes |
-| Before publishing a fork of the kit | Add a LICENSE, and replace `OWNER` in this README and the marketplace command with your GitHub account | A legal and naming choice | no |
 
 ## How a change reaches `main`: always a pull request
 
