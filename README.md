@@ -114,7 +114,7 @@ Four layers; each says what it does NOT guarantee.
 
 ## Tested
 
-`tests/run.sh` runs 255 cases with no simulator build: 24 for the guard, 45 for the cloud gate, 20 for `pr.sh`, 13 for the verify history, 42 for the PR digest, 14 for delegation, 14 for the bearings, 17 for friction, 6 for screen drift, 37 for the one-job standard and 23 for the installer, plus syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
+`tests/run.sh` runs every suite with no simulator build (about 290 cases: the guard, the cloud gate, `pr.sh`, verify history, gate scope, the PR digest, delegation, bearings and the status line, friction, screen drift, the one-job standard and the installer), plus syntax checks on stock `/bin/bash` 3.2 and python3.sh`, 13 for the verify history, 42 for the PR digest, 14 for delegation, 14 for the bearings, 17 for friction, 6 for screen drift, 37 for the one-job standard and 23 for the installer, plus syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates. The visual gate caught a blank empty state every mechanical gate passed, and two text clips at the largest text size.
