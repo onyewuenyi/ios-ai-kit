@@ -10,23 +10,18 @@ Columns: ts run_id sha branch dirty gate result secs summary. A gate row per gat
   history.py stats [n]      per-gate median seconds over the last n runs
 Imported by prs.py, friction.py and bearings.py, so the format is parsed in one place.
 """
-import os
 import statistics
 import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from kit import state_dir  # noqa: E402
+
 FIELDS = ["ts", "run_id", "sha", "branch", "dirty", "gate", "result", "secs", "summary"]
 
 
-def state_dir(cwd: str | os.PathLike | None = None) -> Path:
-    try:
-        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                                cwd=cwd, capture_output=True, text=True, timeout=5).stdout.strip()
-    except Exception:
-        common = ""
-    return Path(common or ".git") / "ios-ai"
 
 
 def rows(path: Path | None = None) -> list[dict]:
