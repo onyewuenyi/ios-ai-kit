@@ -58,7 +58,7 @@ Starting work is not done; an open PR is not done. **`/lead`** reads every open 
 | Healthy | checks running, a fresh draft | nobody: counted, never listed |
 | Done | merged, closed or abandoned since you last looked | reported once |
 
-It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR's existing branch in its own worktree and simulator: it steers, it never respawns), including running `/verify` on cloud-authored PRs, which only a Mac can do. It never merges, closes, force-pushes or posts outside your terminal; `LEAD_COMMENT`, `LEAD_PUSH` and `LEAD_REBASE` in `.claude/ios.env` opt in. Leave **`/loop /lead`** running on a workday: it paces itself (about 10 minutes while checks run, 60 when all is healthy) and stays quiet unless something needs you.
+It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR's existing branch in its own worktree and simulator: it steers, it never respawns), including running `/verify` on cloud-authored PRs, which only a Mac can do. When a PR is merged or closed, `scripts/ai/worktree.sh prune` gives back its worktree, simulator and DerivedData (keeping, and naming, any with unpushed work). It never merges, closes, force-pushes or posts outside your terminal; `LEAD_COMMENT`, `LEAD_PUSH` and `LEAD_REBASE` in `.claude/ios.env` opt in. Leave **`/loop /lead`** running on a workday: it paces itself (about 10 minutes while checks run, 60 when all is healthy) and stays quiet unless something needs you.
 
 ## Delegating to cloud sessions
 
