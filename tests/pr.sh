@@ -45,11 +45,14 @@ ok "the uncommitted edit is not in the pushed branch" '[[ $(git show "$(git rev-
 
 echo "a feature branch with a fresh /verify report"
 setup; g switch -qc feature/thing; echo c > c.txt; g add c.txt; g commit -qm "Thing"
-mkdir -p .build/verify; echo "| 1 | format | PASS |" > .build/verify/report.md
+mkdir -p .build/verify; printf "<!-- ios-ai-kit verify sha=%s dirty=0 result=PASS -->\n| 1 | format | PASS |\n" "$(git rev-parse HEAD)" > .build/verify/report.md
 out=$(pr)
 ok "uses the current branch" 'grep -q -- "--head feature/thing" "$GH_LOG"'
 ok "the body is the /verify report" 'grep -q "| 1 | format | PASS |" "$GH_LOG"'
 ok "a single commit titles the PR" 'grep -q -- "--title Thing" "$GH_LOG"'
+setup; g switch -qc feature/stale; echo s > s.txt; g add s.txt; g commit -qm "Stale"
+mkdir -p .build/verify; printf "<!-- ios-ai-kit verify sha=0000000 dirty=0 result=PASS -->\n| 1 | format | PASS |\n" > .build/verify/report.md; out=$(pr)
+ok "a report stamped for another commit is not used" '! grep -q "| 1 | format | PASS |" "$GH_LOG" && grep -q "/verify has not run on this commit" "$GH_LOG"'
 
 echo "an open PR is updated, not duplicated"
 setup; g switch -qc feature/again; echo d > d.txt; g add d.txt; g commit -qm "Again"; export GH_HAS_PR=1
