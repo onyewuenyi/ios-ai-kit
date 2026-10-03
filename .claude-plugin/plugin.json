@@ -1,9 +1,17 @@
 {
   "name": "ios-ai-kit",
-  "version": "0.4.0",
-  "description": "Verification-first Claude Code workflow for any iOS app: one command installs per-checkout simulators, /verify gates (build, tests, visual matrix at default/dark/AX5, Release audit), guard and Stop hooks, a cloud gate so cloud sessions finish to a PR, and a PR-only path to main.",
+  "version": "0.5.0",
+  "description": "Verification-first Claude Code workflow for any iOS app: per-checkout simulators, /verify gates (build, tests, visual matrix at default/dark/AX5, Release audit), a lead that follows every PR to merged, cloud delegation, playbooks, adversarial review, friction healthchecks, and a PR-only path to main.",
   "author": {
     "name": "Charles Amanze Onyewuenyi"
   },
-  "keywords": ["ios", "swiftui", "xcode", "simulator", "verification", "pull-request", "cloud-sessions"]
+  "keywords": [
+    "ios",
+    "swiftui",
+    "xcode",
+    "simulator",
+    "verification",
+    "pull-request",
+    "cloud-sessions"
+  ]
 }

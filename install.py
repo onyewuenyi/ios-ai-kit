@@ -7,15 +7,18 @@ Detects the project, writes .claude/ios.env, copies the kit's scripts, hooks, sk
 rules, and MERGES into existing files instead of overwriting them:
   .claude/settings.json  permissions unioned, hooks appended unless an equivalent exists
                          (an existing swift-format hook is kept and ours skipped), worktree.baseRef set
+  .claude/ios.env        created once; an upgrade appends only the keys it lacks
   .mcp.json              adds the `xcode` server if absent
   CLAUDE.md              the ios-ai-kit block between markers, replaced in place on upgrade
+  docs/ai-workflow.md    the same: the kit's block is refreshed, the team's text around it kept
   .gitignore             adds the kit's local-only paths
-Kit-owned files (scripts/ai/*, .claude/hooks/*, the ios-loop and verify skills) are updated on every
-run; files a team is expected to edit (.claude/ios.env, ios-screens.txt, agents, PR template, docs)
-are only created when missing. Idempotent: run it again to upgrade.
+Kit-owned files (scripts/ai/*, .claude/hooks/*, the kit's skills and agents, the Swift rule) are
+replaced on every run: change them in ios-ai-kit, not here. Files a team edits (ios-screens.txt,
+the PR template) are only created when missing. Idempotent: run it again to upgrade.
 """
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -28,8 +31,7 @@ KIT_OWNED = ["scripts/ai", ".claude/hooks", ".claude/skills/ios-loop", ".claude/
              ".claude/skills/lead", ".claude/skills/interrogate", ".claude/skills/reflect",
              ".claude/skills/friction", ".claude/skills/map",
              ".claude/rules/ios27-swift.md", ".claude/agents/build-verify.md", ".claude/agents/ui-verify.md", ".claude/agents/review-lens.md"]
-CREATE_IF_MISSING = [".claude/ios-screens.txt",
-                     ".github/pull_request_template.md", "docs/ai-workflow.md"]
+CREATE_IF_MISSING = [".claude/ios-screens.txt", ".github/pull_request_template.md"]
 GITIGNORE = [".build/", "__pycache__/", ".claude/ios.local.env", "CLAUDE.local.md", ".claude/settings.local.json", ".claude/worktrees/"]
 # Rules an earlier kit version wrote that were wrong; an upgrade removes them.
 RETIRED_RULES = ["mcp__xcode__DeviceEventSynthesize", "mcp__xcode__XcodeListWindows",
@@ -148,6 +150,37 @@ def merge_mcp(repo: Path, dry: bool) -> None:
     write(path, json.dumps(cur, indent=2) + "\n", dry, "merged" if path.exists() else "added")
 
 
+# docs/ai-workflow.md as earlier kit versions wrote it, unedited: safe to replace whole on upgrade.
+KNOWN_DOC_VERSIONS = {
+    "a52b1fc3360f30ae25549197ac1e9b5757eda3f2339d84375236c678917a5336",
+    "cf8e1a0e847455757ff90a7dff07c4518cc6dfb5bc2f71f4ffa17160994c25e8",
+    "b783343d5f00e70e172a4a85bde65507df6da30c8ce1e7e141c10bb5cd76fcd8",
+}
+
+
+def merge_block(path: Path, block: str, fresh: str, dry: bool, label: str, known: set[str] = frozenset()) -> None:
+    """The kit's block between BEGIN/END markers, replaced in place; text outside it is the team's.
+    A file without markers that is byte-for-byte an earlier kit version is replaced whole; one that
+    was edited is left alone and named."""
+    if not path.exists():
+        write(path, fresh, dry, "added")
+        return
+    cur = path.read_text()
+    if BEGIN in cur:
+        new = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END) + r"\n?", lambda _: block, cur, flags=re.S)
+    elif hashlib.sha256(cur.encode()).hexdigest() in known:
+        new = fresh
+    elif known:
+        log.append(f"kept     {label} (edited, and has no kit markers: wrap the kit's part in {BEGIN} … {END} to let upgrades refresh it)")
+        return
+    else:
+        new = cur.rstrip() + "\n\n" + block
+    if new == cur:
+        log.append(f"same     {label}")
+    else:
+        write(path, new, dry, "merged")
+
+
 def merge_claude_md(repo: Path, d: dict, dry: bool) -> None:
     block = (KIT / "CLAUDE.block.md").read_text()
     style = ("synchronized folders (a new .swift file in the target's folder compiles automatically)" if d["synced"]
@@ -155,17 +188,13 @@ def merge_claude_md(repo: Path, d: dict, dry: bool) -> None:
     for k, v in {"CONTAINER": d["container"], "SCHEME": d["scheme"], "BUNDLE_ID": d["bundle"],
                  "DEPLOYMENT": d["deployment"], "FILE_STYLE": style}.items():
         block = block.replace("{{" + k + "}}", v)
-    path = repo / "CLAUDE.md"
-    cur = path.read_text() if path.exists() else f"# CLAUDE.md\n\n"
-    if BEGIN in cur:
-        new = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END) + r"\n?", block, cur, flags=re.S)
-    else:
-        new = cur.rstrip() + "\n\n" + block
-    if new == cur:
-        log.append("same     CLAUDE.md (ios-ai-kit block)")
-    else:
-        write(path, new, dry, "merged" if path.exists() else "added")
+    merge_block(repo / "CLAUDE.md", block, "# CLAUDE.md\n\n" + block, dry, "CLAUDE.md (ios-ai-kit block)")
 
+
+def merge_docs(repo: Path, dry: bool) -> None:
+    fresh = (KIT / "docs/ai-workflow.md").read_text()
+    block = fresh[fresh.index(BEGIN):fresh.index(END) + len(END)] + "\n"
+    merge_block(repo / "docs/ai-workflow.md", block, fresh, dry, "docs/ai-workflow.md", KNOWN_DOC_VERSIONS)
 
 ENV_DEFAULTS = ["# Cloud sessions (no human to answer a prompt): the gate pushes only branches under this prefix",
              "# and opens a PR; CLOUD_PUBLISH=0 refuses every push there (you publish by hand).",
@@ -254,6 +283,7 @@ def main() -> int:
     merge_settings(repo, a.dry_run)
     merge_mcp(repo, a.dry_run)
     merge_claude_md(repo, d, a.dry_run)
+    merge_docs(repo, a.dry_run)
     ensure_swift_format(repo, d, a.dry_run)
     merge_lines(repo, ".gitignore", GITIGNORE, a.dry_run)
     include = ["CLAUDE.local.md"] + [str(p.relative_to(repo)) for p in repo.glob("**/GoogleService-Info.plist")

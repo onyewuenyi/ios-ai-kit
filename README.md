@@ -48,11 +48,47 @@ The kit automates everything it can. These steps need a person, a browser, or a 
 
 A direct push to the default branch is refused three times over: the guard hook (with the reason and `pr.sh` as the way forward), the cloud gate in cloud sessions, and GitHub's ruleset from `protect-main.sh`, which is the one that holds for every tool and every person.
 
+## The lead: work is done when it is merged
+
+Starting work is not done; an open PR is not done. **`/lead`** reads every open PR you authored (`scripts/ai/prs.py`, a deterministic digest) and sorts it:
+
+| Bucket | What lands there | Who acts |
+|---|---|---|
+| **Needs you** | ready to merge (verified at its head, green, mergeable, no open threads) · stalled · your review requested · fixes waiting to be pushed · a cloud task that never opened a PR | you, with the one command to run |
+| **Needs work** | conflicts · failing checks · review threads · app code not verified at its head | the lead, on that PR's own branch |
+| Healthy | checks running, a fresh draft | nobody: counted, never listed |
+| Done | merged, closed or abandoned since you last looked | reported once |
+
+It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR's existing branch in its own worktree and simulator: it steers, it never respawns), including running `/verify` on cloud-authored PRs, which only a Mac can do. It never merges, closes, force-pushes or posts outside your terminal; `LEAD_COMMENT`, `LEAD_PUSH` and `LEAD_REBASE` in `.claude/ios.env` opt in. Leave **`/loop /lead`** running on a workday: it paces itself (about 10 minutes while checks run, 60 when all is healthy) and stays quiet unless something needs you.
+
+## Delegating to cloud sessions
+
+`scripts/ai/cloud.sh "<task>"` hands one unit that needs no Xcode (docs, scripts, String Catalogs, audits, mechanical refactors, Foundation-only logic) to a Claude Code cloud session: it adds a fixed footer (no xcodebuild, push your own branch, open a PR with a "Not verified here" list, never touch the default branch), asks before launching (it sends code off the Mac and costs money), and records the session so `/lead` follows it to a merged PR. `--branch <head>` continues an existing PR instead of opening a new one. The `delegate` playbook splits bigger requests into verifiable units and routes each to the cloud, a local worktree or the current session. Cloud sessions finish unattended because of the cloud gate (see **Security model**).
+
+## Healthchecks
+
+- **Session-start bearings** (a `SessionStart` hook): only what is off, in a few lines: commits on the default branch that never went through a PR, uncommitted work, HEAD unverified or failing, PRs that need you (from the lead's cached digest, with its age), doctor warnings, a stale healthcheck. Git and files only, under a second, silent when all is well.
+- **`/friction`**: what keeps costing this repo's sessions time, read from its Claude Code transcripts and verify history: exact read-only commands no rule allows, rejected calls, repeated hook refusals, Stop-hook build failures, recurring compiler errors, flaky tests, gates whose median grew, and on Mondays oversized outputs, re-read files and token use. You pick; each accepted fix lands with a test, through a PR. `/lead` runs it quietly each weekday.
+- **Verify history:** every gate and failing test of every `/verify`, per commit, shared by all worktrees (`python3 scripts/ai/history.py last | flips | stats`). It is how the lead knows a PR is verified at its head and how friction finds flakes.
+
+## Playbooks, review and lessons
+
+- **Playbooks:** `ios-loop` routes every non-trivial task to one whose steps end in evidence: bug fix, feature, UI pass, prototype arena (variants in worktrees, compared side by side), investigation, perf, hillclimb, schema change, release, device run, delegate, autonomous run, handoff. `principles.md` holds the eleven principles behind them, each with its trigger.
+- **`/interrogate`:** one read-only reviewer per lens the diff can fail on (concurrency, persistence, lifecycle, extremes, accessibility, privacy and App Review, performance, slop), a second Claude model on the riskiest, and only findings it verified.
+- **`/reflect`:** turns a session's lessons into the strongest structure that would have prevented them: a type, a test, a hook, a script, a screen line, a playbook step, a rule.
+- **`/map`:** builds and refreshes `.claude/ios-screens.txt` from the app's own seams and its live accessibility labels; the visual gate refuses a screen whose seam the app no longer reads.
+
+Every agent and skill states its job, what is not its job, and its one-line answer when there is nothing to report; `tests/standard.py` enforces it, along with "no script referenced that does not exist, no script that nothing uses".
+
 ## What it gives the repo
 
 | | |
 |---|---|
 | **`/verify`** | Gates written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. 7, with `--release`, the **release gate** (`release.sh`): the Release build, or a real `.xcarchive`, audited for submission blockers (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). Ends by offering `pr.sh`. |
+| **`/lead`, `prs.py`** | Every open PR sorted by who has to act; the lead does the needs-work on each PR's own branch. |
+| **`cloud.sh`** | One no-Xcode unit to a cloud session, tracked to a merged PR. |
+| **Bearings, `/friction`, verify history** | What is off at session start; what keeps costing time; every gate of every run. |
+| **Playbooks, `/interrogate`, `/reflect`, `/map`** | Evidence-ending playbooks; adversarial review; lessons into structure; an honest screen list. |
 | **`pr.sh`** | The only way to `main`: branch if needed, push, open or update the PR, body from `/verify`. |
 | **Stop hook** | A turn that changed code can't end on a broken build: format lint plus an incremental build, cached per change. It blocks once, never loops, and stays silent where there is no Xcode (cloud sessions). |
 | **Guard hook** | Denies a push to the default branch, a simulator destination with no runtime, and `simctl … booted` when more than one simulator is booted. Asks before erasing every simulator or editing a committed Core Data model version. |
@@ -61,7 +97,7 @@ A direct push to the default branch is refused three times over: the guard hook 
 | **`ios-loop` skill** | The development loop, Xcode MCP versus shell (with Xcode 27's measured behavior), bug fixes, two-pass UI work, parallel worktrees, routing work to cloud sessions, and the PR step. |
 | **UI assertions** | `xcui.py` launches the build the kit already made, by UDID, then attaches a *device-only* Xcode interaction session to read the live UI hierarchy. It doesn't use `InstallAndRun`: on a large project, Xcode dropped that session mid-build and kept the simulator locked to it. |
 | **Agents** | `build-verify` (Haiku) returns only `file:line: message`. `ui-verify` judges the screenshots and drives Xcode's device interaction. |
-| **Scripts** | `scripts/ai/{build,test,check,verify,visual,release,sim,doctor,bootstrap,worktree,format,pr,protect-main}.sh`, plus `xcui.py`, `xcresult.py`, `blast-radius.py`, `audit-bundle.py`, `debug-fences.py`, and `frames.swift` / `compare.swift`. |
+| **Scripts** | `scripts/ai/{build,test,check,verify,visual,release,sim,doctor,bootstrap,worktree,format,pr,protect-main,cloud}.sh`, plus `prs.py`, `history.py`, `friction.py`, `screens-drift.py`, `xcui.py`, `xcresult.py`, `blast-radius.py`, `audit-bundle.py`, `debug-fences.py`, `kit.py`, and `frames.swift` / `compare.swift`. |
 
 **Upgrading is idempotent.** Kit-owned files are updated (`scripts/ai/*`, `.claude/hooks/*`, the `ios-loop` and `verify` skills, the two agents). Team-owned files are only created when missing (`.claude/ios.env`, `.claude/ios-screens.txt`, the PR template, `docs/ai-workflow.md`); an older `ios.env` gains new keys, never loses values. `.claude/settings.json` is merged (permissions unioned, an existing swift-format hook respected, wrong rules from earlier versions removed), `CLAUDE.md` gets a marked block replaced in place, and `.mcp.json`, `.gitignore` and `.worktreeinclude` are merged. A `.swift-format` matching the code's indentation is created when missing.
 
@@ -78,7 +114,7 @@ Four layers; each says what it does NOT guarantee.
 
 ## Tested
 
-`tests/run.sh` runs 24 hook cases, 45 cloud-gate cases (each through the hook process as a cloud session and again locally, including the exact command a real cloud session stalled on), 19 `pr.sh` cases against a local bare remote, 18 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
+`tests/run.sh` runs 255 cases with no simulator build: 24 for the guard, 45 for the cloud gate, 20 for `pr.sh`, 13 for the verify history, 42 for the PR digest, 14 for delegation, 14 for the bearings, 17 for friction, 6 for screen drift, 37 for the one-job standard and 23 for the installer, plus syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates. The visual gate caught a blank empty state every mechanical gate passed, and two text clips at the largest text size.
@@ -87,6 +123,10 @@ Four layers; each says what it does NOT guarantee.
 - **Cloud sessions:** one ran to an open PR with no prompt; one told to push to `main` left it untouched and pushed its own branch.
 - **Parallel worktrees:** two test runs at once, each on its own simulator.
 - **Xcode device interaction:** start a session, launch, assert the hierarchy, in both directions.
+
+## Migrating from ios-stack
+
+ios-stack, the earlier plugin, is retired: everything worth keeping moved here. Its playbooks and principles are in `ios-loop`; `/ios-stack:interrogate` and `/ios-stack:reflect` are `/interrogate` and `/reflect`; `create-verify-skill` became `/map` (one verify path, the kit's `/verify`); its session bearings became the SessionStart hook; its evidence ledger became the verify history. Its turn-end guard, statusline, crash monitor and builder/verifier agents were dropped (the Stop hook, `sim.sh crashes` and `ui-verify` cover them). Uninstall it (`claude plugin uninstall ios-stack`) once the kit is installed: both together run two sets of session and Stop hooks, and `doctor.sh` warns while it is still enabled.
 
 ## Requirements and limits
 

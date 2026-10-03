@@ -8,7 +8,7 @@
     {
       "name": "ios-ai-kit",
       "source": "./",
-      "description": "Install a verification-first, PR-only Claude Code workflow into any iOS repo with /ios-ai-kit:setup."
+      "description": "Install a verification-first, PR-only Claude Code workflow into any iOS repo with /ios-ai-kit:setup: /verify gates, /lead, cloud delegation, playbooks, /interrogate, /friction."
     }
   ]
 }

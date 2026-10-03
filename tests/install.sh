@@ -38,6 +38,17 @@ ok "existing CLAUDE.md content is kept" 'grep -q "Keep this line." "$r/CLAUDE.md
 sed -i '' 's/## iOS loop (ios-ai-kit)/## STALE/' "$r/CLAUDE.md"; python3 "$kit/install.py" "$r" >/dev/null 2>&1
 ok "an upgrade replaces the block in place" '! grep -q "## STALE" "$r/CLAUDE.md" && [[ $(grep -c "ios-ai-kit:begin" "$r/CLAUDE.md") == 1 ]]'
 
+echo "managed docs block"
+r=$(fresh); python3 "$kit/install.py" "$r" >/dev/null 2>&1
+ok "docs/ai-workflow.md carries the kit's markers" 'grep -q "ios-ai-kit:begin" "$r/docs/ai-workflow.md"'
+printf '\n## Our team notes\nKeep me.\n' >> "$r/docs/ai-workflow.md"; sed -i '' 's/## The lead/## STALE LEAD/' "$r/docs/ai-workflow.md"
+python3 "$kit/install.py" "$r" >/dev/null 2>&1
+ok "an upgrade refreshes the kit's block and keeps the team's notes" '! grep -q "STALE LEAD" "$r/docs/ai-workflow.md" && grep -q "Keep me." "$r/docs/ai-workflow.md"'
+git -C "$kit" show 5e2fbb0:template/docs/ai-workflow.md > "$r/docs/ai-workflow.md"; python3 "$kit/install.py" "$r" >/dev/null 2>&1
+ok "an unedited earlier kit version is replaced whole" 'grep -q "ios-ai-kit:begin" "$r/docs/ai-workflow.md"'
+printf '# Ours\nHand-written.\n' > "$r/docs/ai-workflow.md"; out=$(python3 "$kit/install.py" "$r" 2>&1)
+ok "an edited doc without markers is kept and named" '[[ $(cat "$r/docs/ai-workflow.md") == *"Hand-written."* && $out == *"kept     docs/ai-workflow.md"* ]]'
+
 echo "workspace projects"
 r=$(fresh); mkdir -p "$r/App.xcworkspace"
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version="1.0"><FileRef location="group:Plantly.xcodeproj"></FileRef></Workspace>\n' > "$r/App.xcworkspace/contents.xcworkspacedata"
