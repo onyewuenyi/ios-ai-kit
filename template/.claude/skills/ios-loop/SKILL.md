@@ -71,6 +71,8 @@ Every change goes through the same loop, one logical change per build. Your clai
 
 ## Parallel work
 
+- **Splitting a request across sessions:** read `playbooks/delegate.md`. Every unit is tracked to a merged PR by `/lead`.
+
 - **Limits:** two or three sessions at once. Each gets its own worktree (`claude --worktree <name>`, or `scripts/ai/worktree.sh new <name>`), its own `.build/dd` and its own simulator, all automatic.
 - **Worktree contents:**
   - Worktrees start from your current HEAD (`worktree.baseRef: "head"`).

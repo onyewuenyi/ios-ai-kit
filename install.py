@@ -25,6 +25,7 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parent / "template"
 KIT_OWNED = ["scripts/ai", ".claude/hooks", ".claude/skills/ios-loop", ".claude/skills/verify",
+             ".claude/skills/lead",
              ".claude/rules/ios27-swift.md", ".claude/agents/build-verify.md", ".claude/agents/ui-verify.md"]
 CREATE_IF_MISSING = [".claude/ios-screens.txt",
                      ".github/pull_request_template.md", "docs/ai-workflow.md"]
@@ -165,17 +166,27 @@ def merge_claude_md(repo: Path, d: dict, dry: bool) -> None:
         write(path, new, dry, "merged" if path.exists() else "added")
 
 
-CLOUD_ENV = ["# Cloud sessions (no human to answer a prompt): the gate pushes only branches under this prefix",
+ENV_DEFAULTS = ["# Cloud sessions (no human to answer a prompt): the gate pushes only branches under this prefix",
              "# and opens a PR; CLOUD_PUBLISH=0 refuses every push there (you publish by hand).",
-             "CLOUD_BRANCH_PREFIX=claude/", "CLOUD_PUBLISH=1"]
+             "CLOUD_BRANCH_PREFIX=claude/", "CLOUD_PUBLISH=1",
+             "# /lead: post verify reports on PRs, push its fixes, rebase instead of merging the base (0 = ask/never);",
+             "# a PR idle this many days is 'stalled'; a cloud task with no PR after this many hours needs you.",
+             "LEAD_COMMENT=0", "LEAD_PUSH=0", "LEAD_REBASE=0", "LEAD_STALE_DAYS=3", "LEAD_NO_PR_HOURS=6"]
 
 
 def write_env(repo: Path, d: dict, dry: bool) -> None:
     path = repo / ".claude/ios.env"
     if path.exists():
         text = path.read_text()
-        add = [l for l in CLOUD_ENV if l.startswith("#") or l.split("=")[0] + "=" not in text]
-        if any(not l.startswith("#") for l in add):
+        add, comments = [], []  # a comment travels only with the missing keys that follow it
+        for line in ENV_DEFAULTS:
+            if line.startswith("#"):
+                comments.append(line)
+                continue
+            if not re.search(rf"^{re.escape(line.split('=')[0])}=", text, re.M):
+                add += comments + [line]
+            comments = []
+        if add:
             write(path, text.rstrip("\n") + "\n" + "\n".join(add) + "\n", dry, "extended")
         else:
             log.append("kept     .claude/ios.env (edit it to change detected values)")
@@ -186,7 +197,7 @@ def write_env(repo: Path, d: dict, dry: bool) -> None:
              "DEVICE_MODEL=iPhone 17 Pro", "MIN_XCODE=27", f"SOURCE_DIRS={d['source_dirs']}",
              f"TEST_FLAGS={'-parallel-testing-enabled NO' if d['serial_tests'] else ''}",
              "# Passed on every launch (guard, visual, xcui): a fixture seed or skip-onboarding flag, if the app needs one.",
-             "BASE_LAUNCH_ARGS=", *CLOUD_ENV]
+             "BASE_LAUNCH_ARGS=", *ENV_DEFAULTS]
     write(path, "\n".join(lines) + "\n", dry, "added")
 
 

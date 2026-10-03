@@ -32,6 +32,7 @@ out=$(python3 "$kit/install.py" "$r" 2>&1); python3 "$kit/install.py" "$r" >/dev
 ok "team rules and plugins survive" 'python3 -c "import json;d=json.load(open(\"$r/.claude/settings.json\"));assert \"Bash(make:*)\" in d[\"permissions\"][\"allow\"] and d[\"enabledPlugins\"]=={\"x@y\":True}"'
 ok "an existing swift-format hook is kept and ours skipped" '[[ $out == *"skipped  format hook"* ]] && [[ $(grep -c format-swift.sh "$r/.claude/settings.json") == 0 ]]'
 ok "retired wrong rules are removed on upgrade" '! grep -q XcodeListWindows "$r/.claude/settings.json"'
+ok "an upgrade adds only missing keys, each with its own comment once" '[[ $(grep -c "^# Cloud sessions" "$r/.claude/ios.env") == 1 && $(grep -c "^# /lead" "$r/.claude/ios.env") == 1 && $(grep -c "^LEAD_STALE_DAYS=" "$r/.claude/ios.env") == 1 ]]'
 ok "an older ios.env gains the cloud keys once, its values kept" 'grep -qx "SCHEME=Custom" "$r/.claude/ios.env" && [[ $(grep -c "^CLOUD_BRANCH_PREFIX=" "$r/.claude/ios.env") == 1 && $(grep -c "^CLOUD_PUBLISH=" "$r/.claude/ios.env") == 1 ]]'
 ok "existing CLAUDE.md content is kept" 'grep -q "Keep this line." "$r/CLAUDE.md"'
 sed -i '' 's/## iOS loop (ios-ai-kit)/## STALE/' "$r/CLAUDE.md"; python3 "$kit/install.py" "$r" >/dev/null 2>&1
