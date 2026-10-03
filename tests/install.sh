@@ -14,7 +14,7 @@ ok "writes ios.env with the scheme" 'grep -qx "SCHEME=Plantly" "$r/.claude/ios.e
 ok "ios.env carries the cloud gate defaults" 'grep -qx "CLOUD_BRANCH_PREFIX=claude/" "$r/.claude/ios.env" && grep -qx "CLOUD_PUBLISH=1" "$r/.claude/ios.env"'
 ok "every kit script is executable" '[[ -z $(find "$r/scripts/ai" -name "*.sh" ! -perm -u+x) ]]'
 ok "CLAUDE.md has exactly one kit block" '[[ $(grep -c "ios-ai-kit:begin" "$r/CLAUDE.md") == 1 ]]'
-ok "settings has the four hook events and worktree.baseRef head" 'python3 -c "import json,sys;d=json.load(open(\"$r/.claude/settings.json\"));assert set(d[\"hooks\"])=={\"PreToolUse\",\"PostToolUse\",\"PermissionRequest\",\"Stop\"} and d[\"worktree\"][\"baseRef\"]==\"head\""'
+ok "settings has the five hook events and worktree.baseRef head" 'python3 -c "import json,sys;d=json.load(open(\"$r/.claude/settings.json\"));assert set(d[\"hooks\"])=={\"SessionStart\",\"PreToolUse\",\"PostToolUse\",\"PermissionRequest\",\"Stop\"} and d[\"worktree\"][\"baseRef\"]==\"head\""'
 ok ".gitignore has the local-only paths" 'grep -qx ".claude/ios.local.env" "$r/.gitignore" && grep -qx ".build/" "$r/.gitignore"'
 ok ".swift-format matches the code (4 spaces)" 'python3 -c "import json;assert json.load(open(\"$r/.swift-format\"))[\"indentation\"][\"spaces\"]==4"'
 again=$(python3 "$kit/install.py" "$r" 2>&1)

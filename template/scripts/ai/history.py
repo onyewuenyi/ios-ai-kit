@@ -16,6 +16,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.dont_write_bytecode = True  # never leave __pycache__ in the project's scripts/ai
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import state_dir  # noqa: E402
 

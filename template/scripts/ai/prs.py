@@ -26,6 +26,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.dont_write_bytecode = True  # never leave __pycache__ in the project's scripts/ai
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import history  # noqa: E402
 from kit import env, git, state_dir, write_atomic  # noqa: E402
