@@ -78,7 +78,7 @@ Four layers; each says what it does NOT guarantee.
 
 ## Tested
 
-`tests/run.sh` runs 24 hook cases, 45 cloud-gate cases (each through the hook process as a cloud session and again locally, including the exact command a real cloud session stalled on), 16 `pr.sh` cases against a local bare remote, 18 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
+`tests/run.sh` runs 24 hook cases, 45 cloud-gate cases (each through the hook process as a cloud session and again locally, including the exact command a real cloud session stalled on), 19 `pr.sh` cases against a local bare remote, 18 installer and ownership cases, and syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace. Proven live on a brand-new app and on a production app with about 1,230 tests:
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates. The visual gate caught a blank empty state every mechanical gate passed, and two text clips at the largest text size.

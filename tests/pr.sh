@@ -36,6 +36,13 @@ ok "the PR targets main from that branch" 'grep -q -- "pr create --base main --h
 ok "without a fresh /verify report the body says so" 'grep -q "/verify has not run on this commit" "$GH_LOG"'
 ok "it prints the PR url" '[[ $out == *"opened https://github.com/o/r/pull/8"* ]]'
 
+echo "uncommitted files are named and left alone"
+setup; echo e > README.md; echo a > a.txt; g add a.txt; g commit -qm "Only this"; out=$(pr)
+ok "names the uncommitted file" '[[ $out == *"not in this PR"*README.md* ]]'
+ok "the PR still opens" '[[ $out == *"opened https://github.com/o/r/pull/8"* ]]'
+ok "the uncommitted edit is still there" '[[ $(cat README.md) == e ]]'
+ok "the uncommitted edit is not in the pushed branch" '[[ $(git show "$(git rev-parse --abbrev-ref HEAD)":README.md) == base ]]'
+
 echo "a feature branch with a fresh /verify report"
 setup; g switch -qc feature/thing; echo c > c.txt; g add c.txt; g commit -qm "Thing"
 mkdir -p .build/verify; echo "| 1 | format | PASS |" > .build/verify/report.md
@@ -53,9 +60,7 @@ ok "never calls pr create" '! grep -q "pr create" "$GH_LOG"'
 echo "refusals"
 setup; out=$(pr)
 ok "nothing to propose" '[[ $out == *"nothing to propose"* ]]'
-echo e > README.md; out=$(pr)
-ok "uncommitted changes stop it" '[[ $out == *"uncommitted changes"* ]]'
-git checkout -q README.md; echo f > f.txt; g add f.txt; g commit -qm "Dry"; out=$(pr --dry-run)
+echo f > f.txt; g add f.txt; g commit -qm "Dry"; out=$(pr --dry-run)
 ok "--dry-run changes nothing" '[[ $(git rev-parse --abbrev-ref HEAD) == main && $out == *"nothing changed"* ]]'
 
 echo "$pass passed, $fail failed"; exit $fail
