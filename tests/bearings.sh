@@ -19,8 +19,10 @@ echo x > a.txt; g add a.txt; g commit -qm local
 ok "commits on main not on origin point at pr.sh" '[[ $(ctx) == *"not on origin: scripts/ai/pr.sh"* ]]'
 echo y >> a.txt
 ok "uncommitted paths are named" '[[ $(ctx) == *"1 uncommitted path"* ]]'
-git checkout -q a.txt; g switch -qc claude/topic
-ok "an unverified branch HEAD asks for /verify" '[[ $(ctx) == *"has not been verified"* ]]'
+git checkout -q a.txt; g switch -qc claude/done origin/main
+ok "a branch with nothing beyond main says to start fresh" '[[ $(ctx) == *"claude/done has nothing that is not already on main"* ]]'
+g switch -qc claude/topic main
+ok "an unverified branch HEAD asks for /verify" '[[ $(ctx) == *"has not been verified"* && $(ctx) != *"nothing that is not already"* ]]'
 printf '%s\tr1\t%s\tclaude/topic\t0\tbuild\tFAIL\t3\terror\n' "$(date +%s)" "$(git rev-parse HEAD)" > "$sd/verify.tsv"
 ok "a failed /verify on HEAD is named with its gate" '[[ $(ctx) == *"FAILED (build)"* ]]'
 printf '%s\tr2\t%s\tclaude/topic\t0\tbuild\tPASS\t3\tok\n' "$(date +%s)" "$(git rev-parse HEAD)" >> "$sd/verify.tsv"
