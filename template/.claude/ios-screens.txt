@@ -1,0 +1,6 @@
+# Screens for the visual matrix (scripts/ai/visual.sh, /verify gate 6).
+# One per line:  name | launch arguments (DEBUG-only seams) | expect: label; label | absent: label
+# expect/absent match ACCESSIBILITY labels and identifiers (what VoiceOver reads), which can
+# differ from visible text: a button showing "Tasks" may be labelled "Your tasks". To see a screen's
+# labels: scripts/ai/xcui.py … --name probe, then read the printed hierarchy file.
+launch |

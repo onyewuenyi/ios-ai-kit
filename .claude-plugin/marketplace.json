@@ -1,0 +1,14 @@
+{
+  "name": "ios-ai-kit",
+  "description": "Verification-first Claude Code workflow for iOS apps.",
+  "owner": {
+    "name": "Charles Amanze Onyewuenyi"
+  },
+  "plugins": [
+    {
+      "name": "ios-ai-kit",
+      "source": "./",
+      "description": "Install a verification-first, PR-only Claude Code workflow into any iOS repo with /ios-ai-kit:setup: /verify gates, /lead, cloud delegation, playbooks, /interrogate, /friction."
+    }
+  ]
+}
