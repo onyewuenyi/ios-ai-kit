@@ -139,10 +139,27 @@ def merge_settings(repo: Path, dry: bool) -> None:
     ours = json.loads((KIT / ".claude/settings.json").read_text())
     cur = json.loads(path.read_text()) if path.exists() else {}
     perms = cur.setdefault("permissions", {})
+    # A rule the team deleted stays deleted: only rules NEW to the kit since the last install are
+    # added. The kit's rule set as last installed is remembered in .claude/ios-kit.json.
+    memo_path = repo / ".claude/ios-kit.json"
+    try:
+        memo = json.loads(memo_path.read_text())
+    except (OSError, ValueError):
+        memo = {}
+    seen = set(memo.get("rules", []))
     for k in ("allow", "ask", "deny"):
         have = perms.setdefault(k, [])
         have[:] = [r for r in have if r not in RETIRED_RULES]
-        have += [r for r in ours["permissions"][k] if r not in have]
+        for r in ours["permissions"][k]:
+            if r in have:
+                continue
+            if r in seen and seen:
+                log.append(f"warning  settings.json: {r} is a kit rule you removed; left out")
+                continue
+            have.append(r)
+    all_rules = sorted({r for k in ("allow", "ask", "deny") for r in ours["permissions"][k]})
+    if memo.get("rules") != all_rules:
+        write(memo_path, json.dumps({"rules": all_rules}, indent=1) + "\n", dry, "merged" if memo_path.exists() else "added")
     cur.setdefault("worktree", {}).setdefault("baseRef", "head")
     hooks = cur.setdefault("hooks", {})
     existing_cmds = json.dumps(hooks)
@@ -150,12 +167,20 @@ def merge_settings(repo: Path, dry: bool) -> None:
         for g in groups:
             for h in g["hooks"]:
                 script = h["command"].rsplit("/", 1)[-1].strip('"')
-                if script in existing_cmds:
-                    continue  # ours, from an earlier install
-                if script == "format-swift.sh" and "swift-format" in existing_cmds:
+                if script == "format-swift.sh" and script not in existing_cmds and "swift-format" in existing_cmds:
                     log.append("skipped  format hook (the repo already formats Swift on edit)")
                     continue
-                hooks.setdefault(event, []).append({**({"matcher": g["matcher"]} if "matcher" in g else {}), "hooks": [h]})
+                placed = False
+                for grp in hooks.get(event, []):  # ours from an earlier install: replace it in place
+                    for i, old_h in enumerate(grp.get("hooks", [])):
+                        if old_h.get("type") == "command" and old_h.get("command", "").rsplit("/", 1)[-1].strip('"') == script:
+                            if old_h != h or grp.get("matcher") != g.get("matcher"):
+                                grp["hooks"][i] = dict(h)
+                                if "matcher" in g:
+                                    grp["matcher"] = g["matcher"]
+                            placed = True
+                if not placed:
+                    hooks.setdefault(event, []).append({**({"matcher": g["matcher"]} if "matcher" in g else {}), "hooks": [h]})
     text = json.dumps(cur, indent=2) + "\n"
     if path.exists() and path.read_text() == text:
         log.append("same     .claude/settings.json")

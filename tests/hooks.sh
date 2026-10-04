@@ -50,5 +50,12 @@ nl=$'\n'
 check "a push to main inside text written by cat is allowed" "$(gd "cat > t.sh <<'EOF'${nl}git push -q origin HEAD:main${nl}EOF${nl}chmod +x t.sh")" allow
 check "a push to main inside text written by tee is allowed" "$(gd "tee t.sh <<EOF${nl}git push origin main${nl}EOF")" allow
 check "a push to main in a heredoc fed to bash is denied" "$(gd "bash <<'EOF'${nl}git push origin main${nl}EOF")" deny
+check "git stash push on main is not a push" "$(gd 'git stash push -m wip')" allow
+check "git grep push on main is not a push" "$(gd 'git grep push')" allow
+check "git commit -m push on main is not a push" "$(gd 'git commit -m push')" allow
+check "git -C x push to main is denied" "$(gd 'git -C . push origin main')" deny
+check "push to heads/main is denied" "$(gd 'git push origin HEAD:heads/main')" deny
+check "push of @ (HEAD) on main is denied" "$(gd 'git push origin @')" deny
+check "a computed ref is denied" "$(gd 'git push origin "$(echo x)"')" deny
 check "a real push after a written heredoc is still denied" "$(gd "cat > t <<'EOF'${nl}x${nl}EOF${nl}git push origin main")" deny
 echo "$pass passed, $fail failed"; exit $fail

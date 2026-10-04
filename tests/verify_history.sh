@@ -6,7 +6,7 @@ ok() { if eval "$2"; then pass=$((pass+1)); echo "  ok   $1"; else fail=$((fail+
 g() { git -c user.email=t@t -c user.name=t "$@"; }
 
 w=$(mktemp -d); cd "$w" && git init -q -b main app && cd app || exit 1
-mkdir -p scripts .claude; cp -R "$kit/template/scripts/ai" scripts/; echo "SCHEME=App" > .claude/ios.env
+mkdir -p scripts .claude; cp -R "$kit/template/scripts/ai" scripts/; echo "SCHEME=App" > .claude/ios.env; echo ".build/" > .gitignore
 for s in format build test; do
   printf '#!/bin/bash\n[[ ${STUB_FAIL:-} == *%s* ]] && { [[ %s == test ]] && echo "fail Suite/flaky(): boom"; echo "%s: failed"; exit 1; }\necho "%s: ok"\n' "$s" "$s" "$s" "$s" > "scripts/ai/$s.sh"
 done
@@ -36,6 +36,31 @@ echo "notes" >> README.md 2>/dev/null || echo "notes" > README.md; git add READM
 ok "an uncommitted Markdown note does not make the run dirty" '[[ $(tail -1 "$hist" | cut -f5) == 0 ]]'
 git checkout -q README.md
 
+# the visual gate: captured is not passed until judged
+printf '#!/bin/bash\necho "JUDGE /tmp/x.png"; echo "visual: evidence in e"\n' > scripts/ai/visual.sh; echo "home | |" > .claude/ios-screens.txt
+g add -A; g commit -qm screens; sha2=$(git rev-parse HEAD); out=$(scripts/ai/verify.sh 2>&1)
+ok "sheets captured record visual as JUDGE and the run says so" '[[ $(tail -1 "$hist" | cut -f6,7) == $'"'"'visual\tJUDGE'"'"' && $out == *"await a judge"* ]]'
+ok "a captured-but-unjudged run is not verified" '! H verified "$sha2"'
+ok "the report is stamped JUDGE" 'head -1 .build/verify/report.md | grep -q "result=JUDGE"'
+ok "judge rejects anything but PASS or FAIL" '! H judge maybe >/dev/null 2>&1'
+H judge PASS "home: fine at AX5" >/dev/null
+ok "a PASS verdict completes the run: now verified" 'H verified "$sha2"'
+ok "the report carries the verdict" 'head -1 .build/verify/report.md | grep -q "result=PASS" && grep -q "Visual verdict:\*\* PASS. home: fine" .build/verify/report.md'
+ok "judging twice is refused (nothing left to judge)" '! H judge PASS >/dev/null 2>&1'
+scripts/ai/verify.sh >/dev/null 2>&1; H judge FAIL "title clipped" >/dev/null
+ok "a FAIL verdict leaves the commit unverified" '! H verified "$sha2"'
+scripts/ai/verify.sh --no-visual --no-tests >/dev/null 2>&1
+ok "a --no-tests run never counts as verified" '! H verified "$sha2"'
+echo "struct New {}" > New.swift; v
+ok "an untracked file makes the run dirty: it is in the build but not in HEAD" '[[ $(tail -1 "$hist" | cut -f5) == 1 ]]'
+rm New.swift
+printf '#!/bin/bash\nexit 0\n' > scripts/ai/build.sh; v
+ok "a gate that prints nothing does not abort the run" '[[ $(tail -1 "$hist" | cut -f6) == visual && $(grep -c "" .build/verify/report.md) -gt 3 ]]'
+printf '#!/bin/bash\necho "build: ok"\n' > scripts/ai/build.sh
+printf "# Don't capture this yet\nhome | |\nempty | -Empty | expect:\n" > .claude/ios-screens.txt; printf '#!/bin/bash\necho "visual: evidence in e"\n' > scripts/ai/visual.sh
+out=$(scripts/ai/verify.sh 2>&1)
+ok "an apostrophe in a screens comment and an empty expect: do not abort the matrix" '[[ $out == *"visual  PASS"* ]]'
+rm .claude/ios-screens.txt; g add -A; g commit -qm noscreens
 rm -rf .build
 ok "history survives rm -rf .build" '[[ -s "$hist" ]]'
 git worktree add -q ../wt -b feature 2>/dev/null; (cd ../wt && scripts/ai/verify.sh --no-visual >/dev/null 2>&1)

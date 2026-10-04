@@ -69,6 +69,21 @@ ok "an unchanged upgrade says so in one line" '[[ $out == *"Already current. Not
 out=$(python3 "$kit/install.py" "$r" 2>&1 | grep -c "^  same     [A-Za-z.]")
 ok "unchanged files collapse to a count" '[[ $out == 0 ]]'
 
+echo "upgrades respect the team's settings"
+r=$(fresh); python3 "$kit/install.py" "$r" >/dev/null 2>&1
+python3 - "$r" <<'PY'
+import json,sys; p=sys.argv[1]+"/.claude/settings.json"; d=json.load(open(p))
+d["permissions"]["allow"]=[x for x in d["permissions"]["allow"] if x!="Bash(xcodebuild:*)"]
+for grp in d["hooks"]["Stop"]:
+    for h in grp["hooks"]:
+        if "stop-check.py" in h["command"]: h["timeout"]=5
+json.dump(d,open(p,"w"),indent=2)
+PY
+out=$(python3 "$kit/install.py" "$r" 2>&1); py() { python3 -c "import json;d=json.load(open('$r/.claude/settings.json'));$1"; }
+ok "a rule the team removed is not re-added" '[[ $out == *"warning  settings.json: Bash(xcodebuild:*) is a kit rule you removed"* ]] && py "assert \"Bash(xcodebuild:*)\" not in d[\"permissions\"][\"allow\"]"'
+ok "a kit hook changed by the team is restored to the kit's definition on upgrade" 'py "assert all(h[\"timeout\"]!=5 for g in d[\"hooks\"][\"Stop\"] for h in g[\"hooks\"] if \"stop-check\" in h[\"command\"])"'
+ok "a kit hook appears exactly once after two installs" 'py "assert sum(1 for g in d[\"hooks\"][\"Stop\"] for h in g[\"hooks\"] if \"stop-check\" in h[\"command\"])==1"'
+
 echo "workspace projects"
 r=$(fresh); mkdir -p "$r/App.xcworkspace"
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version="1.0"><FileRef location="group:Plantly.xcodeproj"></FileRef></Workspace>\n' > "$r/App.xcworkspace/contents.xcworkspacedata"
