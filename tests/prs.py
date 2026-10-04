@@ -89,8 +89,8 @@ for name, p, c, want in CASES:
 
 # verified at an earlier commit: holds only while later commits touch no app code
 V = "v" * 40
-vrows = [{"ts": "1", "run_id": "r", "sha": V, "branch": "b", "dirty": "0", "gate": "build", "result": "PASS",
-          "secs": "1", "summary": ""}]
+vrows = [{"ts": "1", "run_id": "r", "sha": V, "branch": "b", "dirty": "0", "gate": g, "result": "PASS",
+          "secs": "1", "summary": ""} for g in ("format", "build", "tests")]
 later = pr(commits=[{"oid": V}, {"oid": "a" * 40}])
 check("verified earlier, later commits only docs/scripts → still verified",
       prs.verified_at(later, vrows, lambda a, b: ["scripts/ai/pr.sh", "docs/x.md"]), (V, True))
@@ -117,8 +117,8 @@ cloud = [{"ts": NOW - 10 * 3600, "slug": "s", "branch": "claude/never", "url": "
           "task": "write the docs"},
          {"ts": NOW - 1 * 3600, "slug": "s2", "branch": "claude/new", "url": "https://claude.ai/code/session_Y",
           "task": "fresh"}]
-rows = [{"ts": "1", "run_id": "r", "sha": "a" * 40, "branch": "claude/x", "dirty": "0", "gate": "build",
-         "result": "PASS", "secs": "1", "summary": ""}]
+rows = [{"ts": "1", "run_id": "r", "sha": "a" * 40, "branch": "claude/x", "dirty": "0", "gate": g,
+         "result": "PASS", "secs": "1", "summary": ""} for g in ("format", "build", "tests")]
 d = prs.digest(data, {}, {}, rows, cloud, {}, NOW)
 by = {(i["number"], i["action"]) for i in d["items"]}
 check("digest: verified PR is merge-ready", (5, "merge-ready") in by, True)
@@ -128,6 +128,15 @@ check("digest: cloud task with no PR after 6h → no-pr", (None, "no-pr") in by,
 check("digest: a fresh cloud task is not flagged", sum(1 for i in d["items"] if i["action"] == "no-pr"), 1)
 d2 = prs.digest(data, {}, {"reported_done": [4], "seen_at": NOW - 3600}, rows, cloud, {}, NOW)
 check("digest: done is reported once", any(i["number"] == 4 for i in d2["items"]), False)
+lead_state = {}
+data["prs"][0]["body"] = "see https://claude.ai/code/session_X"
+d3 = prs.digest(data, {}, lead_state, rows, cloud, {}, NOW)
+check("digest: a cloud task whose PR exists is marked resolved for good", "https://claude.ai/code/session_X" in lead_state.get("cloud_resolved", []), True)
+data["prs"][0]["body"] = ""
+d4 = prs.digest({**data, "closed": []}, {}, lead_state, rows, cloud, {}, NOW + 40 * 86400)
+check("digest: …and never resurfaces as no-pr once its PR left the window", any(i["action"] == "no-pr" and i["url"].endswith("session_X") for i in d4["items"]), False)
+b, a, why = prs.classify(pr(), ctx(verified=False, cloud_authored=False))
+check("a local PR with a session trailer is not called cloud-authored", "cloud-authored" in why, False)
 
 # the CLI on a recorded fixture: quiet after --mark-seen, loud again when something changes
 repo = tempfile.mkdtemp()

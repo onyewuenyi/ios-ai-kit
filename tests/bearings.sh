@@ -25,7 +25,7 @@ g switch -qc claude/topic main
 ok "an unverified branch HEAD asks for /verify" '[[ $(ctx) == *"has not been verified"* && $(ctx) != *"nothing that is not already"* ]]'
 printf '%s\tr1\t%s\tclaude/topic\t0\tbuild\tFAIL\t3\terror\n' "$(date +%s)" "$(git rev-parse HEAD)" > "$sd/verify.tsv"
 ok "a failed /verify on HEAD is named with its gate" '[[ $(ctx) == *"FAILED (build)"* ]]'
-printf '%s\tr2\t%s\tclaude/topic\t0\tbuild\tPASS\t3\tok\n' "$(date +%s)" "$(git rev-parse HEAD)" >> "$sd/verify.tsv"
+for gt in format build tests; do printf '%s\tr2\t%s\tclaude/topic\t0\t%s\tPASS\t3\tok\n' "$(date +%s)" "$(git rev-parse HEAD)" "$gt" >> "$sd/verify.tsv"; done
 python3 -c "import json,time; json.dump({'generated': time.time()-7200, 'items': [{'number': 40, 'bucket': 'needs-you', 'action': 'merge-ready'}, {'number': 39, 'bucket': 'needs-work', 'action': 'verify'}]}, open('$sd/prs.json','w'))"
 ok "needs-you PRs from the cached digest, with its age" '[[ $(ctx) == *"Needs you (2h old"*"#40 merge-ready"* && $(ctx) != *"#39"* ]]'
 printf '%s\nWARN gh is not signed in\n' "$(date +%s)" > "$sd/doctor.txt"

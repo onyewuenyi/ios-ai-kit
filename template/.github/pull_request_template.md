@@ -1,21 +1,22 @@
 ## What changed and why
 
+<!-- scripts/ai/pr.sh fills the section below from .build/verify/report.md when /verify ran on this commit. -->
+
 ## Verification (`/verify`)
-<!-- paste the gate table and visual verdicts from .build/verify/report.md -->
 
-| # | Gate | Result |
-|---|---|---|
-| 1 | format | |
-| 2 | build (no new warnings) | |
-| 3 | tests | |
-| 4 | launch-argument safety | |
-| 5 | reach (screens affected) | |
-| 6 | visual: default · dark · AX5 | |
+| # | Gate | Result | Time | Summary |
+|---|---|---|---|---|
+| 1 | format | | | |
+| 2 | build (no new warnings) | | | |
+| 3 | tests | | | |
+| 4 | seams (no launch-argument read outside `#if DEBUG`) | | | |
+| 5 | reach (screens the change can affect) | | | |
+| 6 | visual: default · dark · AX5, judged | | | |
+| 7 | release (with `--release`) | | | |
 
-**Not verified here** (device-only behavior, skipped gates):
--
+**Not verified here** (device-only behavior, skipped gates): …
 
 - [ ] New files are in the right target (synchronized folder or explicit membership)
 - [ ] Empty, loading, error and success states exercised for any new screen
 - [ ] Animation changes checked with Reduce Motion
-- [ ] `cloud-authored`: this branch came from a cloud session and passed `/verify` on a Mac
+- [ ] Label `cloud-authored` is set if this branch came from a cloud session, and `/verify` ran on a Mac

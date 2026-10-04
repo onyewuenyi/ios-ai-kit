@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.2 (2026-10-03)
+
+An audit of the core flow: three read-only reviews (every doc and skill against the scripts, the Python, the shell), 48 findings verified, each fix with a test. `tests/run.sh` now runs 339 cases.
+
+- **The visual gate tells the truth.** Captured sheets read `JUDGE` until someone looks; `scripts/ai/history.py judge PASS|FAIL "<what was seen>"` records the verdict, and only a judged pass counts as verified for `pr.sh`, the lead, the status line and the bearings. A `--no-tests` run never counts. The lead could previously call a UI PR merge-ready on sheets nobody opened.
+- **Holes in the cloud gate closed:** a `#` could hide the rest of a command; `<(…)`, `>(…)` and `>|` passed as arguments; `head`/`grep` could read any file standalone; `git fetch --upload-pack` ran commands.
+- **The guard stops breaking daily work:** `git stash push`, `git grep push`, `git commit -m push` on main are not pushes; `heads/main`, `@` and computed refs are.
+- **Work that could be lost, no longer:** `worktree.sh pr` never resets an existing local branch; `pr.sh` on a detached HEAD never moves main; `remove` lets git refuse before the simulator goes; an untracked `.swift` makes a verify run dirty.
+- **Silent exits named:** a second `.app` product, a gate that prints nothing, a build log without `error:`, a deleted Swift file in the Stop check, an apostrophe in a screens comment, an empty `expect:`, a failed screenshot, `export` lines in `ios.env`, paths with spaces.
+- **First run and upgrades:** the installer prints only what changed and each next step as a bare command (a sentence had been pasted as a command); an existing `ios.env` seeds detection, a stale scheme there warns instead of aborting; kit hooks are replaced in place on upgrade; a rule the team removed stays removed; the screens template documents `#seen` and is stamped on install.
+- **The lead:** also lists teammates' PRs that request your review; a cloud task whose PR exists is remembered as resolved; `LEAD_PUSH=1` pushes through `pr.sh`; `ui-verify` no longer uses `DeviceInteractionInstallAndRun` (the measured hang).
+- **Docs:** `sim.sh record` runs for its whole duration, so every doc shows the background form; the PR template mirrors `report.md`; dangling names fixed (`install.sh`, `/doctor prompt-audit`, a principle title, a flag); `tests/standard.py` now also checks every `/skill`, principle title and script flag a doc names.
+
 ## 0.5.1 (2026-10-03)
 
 Friction found by running the workflow on a real app and its real PRs, each fix with tests:

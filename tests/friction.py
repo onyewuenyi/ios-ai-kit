@@ -84,7 +84,7 @@ check("rejected: named by the real command, not the cd before it", "rejected 2 t
 check("guard: the same refusal 3+ times", any(k == "guard" for k in kinds) and "4 refusals" in ev, True)
 check("guard: shows the commands it refused", "refused: `git push origin main`" in ev, True)
 check("stop: the Stop hook's build check failing 3+ turns", "failed 4 turns" in ev, True)
-check("build-error: the same error in 2+ sessions, line numbers stripped", "cannot find _ in scope" in ev, True)
+check("build-error: the same error in 2+ sessions, line numbers stripped, identifier kept", "cannot find 'Palette' in scope" in ev, True)
 check("waste: oversized outputs", "tool outputs over 20k characters from `cat`" in ev, True)
 check("waste: a file re-read in one session", "Big.swift read 6 times" in ev, True)
 check("waste: compactions and output tokens", "2 compaction(s)" in ev, True)
@@ -95,6 +95,16 @@ check("waste is only reported with --waste (or on Mondays)",
 d = Path(tempfile.mkdtemp())
 session(d, "one", [use(i, "Bash", command="git fetch") for i in range(9)])
 check("allow: one session is not a pattern", run(d, repo).strip(), "")
+
+d = Path(tempfile.mkdtemp())
+for sid, cwd in (("ours", str(repo)), ("ours2", str(repo / ".claude/worktrees/x")), ("sibling", str(repo) + "-other"), ("sibling2", str(repo) + "-other")):
+    recs = []
+    for i in range(3):
+        recs += [{**use(i, "Bash", command="git fetch"), "cwd": cwd}, {**result(i, "ok"), "cwd": cwd}]
+    session(d, sid, recs)
+out = json.loads(run(d, repo, "--json"))
+ev = " | ".join(p["evidence"] for p in out["proposals"])
+check("transcripts of a sibling repo (mangled name extends ours) are not counted", "6 times in 2 sessions" in ev and out["sessions"] == 2, True)
 
 hist = repo / ".git/ios-ai/verify.tsv"
 rows = []

@@ -77,6 +77,26 @@ for name in sorted(scripts):
         orphans.append(name)
 check("every script in scripts/ai is used or documented somewhere", not orphans, ", ".join(orphans))
 
+# references by name: a /skill, a (`principles.md`, Title) citation, a --flag of a kit script
+skill_names = {p.parent.name for p in skills}
+principles = set(re.findall(r"^\*\*([^*]+?)\*\*", (T / ".claude/skills/ios-loop/principles.md").read_text(), re.M))
+principle_titles = {t.split(" (")[0].strip() for t in principles}
+flag_src = {p.name: p.read_text() for p in (T / "scripts/ai").iterdir() if p.suffix in (".sh", ".py")}
+bad_refs = set()
+for d in docs:
+    text = d.read_text()
+    for name in re.findall(r"(?<![\w/.`>])/([a-z][a-z-]+)\b", text):
+        if name not in skill_names and name not in ("verify", "loop", "web-setup", "plugin", "ios-ai-kit", "doctor", "insights", "fewer-permission-prompts", "schedule", "init", "bin", "dev", "tmp", "usr", "var", "etc", "private", "Users", "Applications", "path", "p"):
+            bad_refs.add(f"{d.relative_to(KIT)} → /{name}")
+    for title in re.findall(r"`principles\.md`, ([A-Z][^)]+)\)", text):
+        if title.strip() not in principle_titles:
+            bad_refs.add(f"{d.relative_to(KIT)} → principle '{title.strip()}'")
+    for script, flag in re.findall(r"scripts/ai/([a-z-]+\.(?:sh|py))(?:(?!scripts/ai/)[^`\n)])*?\s(--[a-z-]+)", text):
+        src = flag_src.get(script, "")
+        if flag not in src:
+            bad_refs.add(f"{d.relative_to(KIT)} → {script} {flag}")
+check("every /skill, principle title and script flag a doc names exists", not bad_refs, ", ".join(sorted(bad_refs)))
+
 # the playbook router and its files agree
 router = (T / ".claude/skills/ios-loop/SKILL.md").read_text()
 files = {p.name for p in (T / ".claude/skills/ios-loop/playbooks").glob("*.md")}

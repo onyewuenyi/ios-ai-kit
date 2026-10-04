@@ -73,6 +73,11 @@ ok "a description without the kit marker is never touched" '! grep -q "pr edit" 
 ok "a description already showing this commit's report is left as is" '! grep -q "pr edit" "$GH_LOG"'
 unset GH_HAS_PR GH_BODY
 
+echo "a detached HEAD never moves main"
+setup; echo m > m.txt; g add m.txt; g commit -qm "main-only"; mainsha=$(git rev-parse HEAD); git checkout -q --detach origin/main; echo d > d.txt; g add d.txt; g commit -qm "Detached work"; out=$(pr)
+ok "the detached commit lands on a new branch" '[[ $(git rev-parse --abbrev-ref HEAD) == claude/detached-work-* ]]'
+ok "local main keeps its own unpushed commit" '[[ $(git rev-parse main) == "$mainsha" ]]'
+
 echo "refusals"
 setup; out=$(pr)
 ok "nothing to propose" '[[ $out == *"nothing to propose"* ]]'

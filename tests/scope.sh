@@ -25,6 +25,14 @@ out=$( (source scripts/ai/lib.sh; BUILD_WAIT=2 wait_dd) 2>&1 )
 ok "a build waits for it, then says plainly it is still busy" '[[ $out == *"waiting for it"* && $out == *"still busy"* ]]'
 kill $fake 2>/dev/null; wait $fake 2>/dev/null
 ok "free again: nothing waits" '( source scripts/ai/lib.sh; ! dd_busy )'
+echo "struct D {}" > App/D.swift; g add App/D.swift; g commit -qm d; git rm -q App/D.swift; g commit -qm rm
+out=$(scripts/ai/check.sh 2>&1 || true)
+ok "a change that deletes a Swift file does not break the Stop check's hash" '[[ $out != *"unbound"* && $out == *"check:"* ]]'
+mkdir -p "$w/app/My Dir"; printf 'SCHEME=App\nPROJECT=My Dir/My App.xcodeproj\n' > .claude/ios.env
+ok "a container path with spaces stays one argument" '[[ $( (source scripts/ai/lib.sh; xc_container; echo "${#XC_CONTAINER[@]} ${XC_CONTAINER[1]}") ) == "2 "*"/app/My Dir/My App.xcodeproj" ]]'
+printf 'SCHEME=App\nexport SOURCE_DIRS=App\nnot-a-key=1\n' > .claude/ios.env
+ok "export prefixes and odd lines in ios.env do not break loading" '[[ $( (source scripts/ai/lib.sh; echo "$SOURCE_DIRS") ) == App ]]'
+printf 'SCHEME=App\n' > .claude/ios.env
 git remote remove origin
 ok "with no remote, the scope falls back to uncommitted work" '[[ $(cf) == *App/C.swift* && $(cf) != *App/B.swift* ]]'
 echo "$pass passed, $fail failed"; exit $fail

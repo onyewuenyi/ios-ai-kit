@@ -47,7 +47,9 @@ out=$(NO_CLOUD=1 scripts/ai/cloud.sh "x" 2>&1)
 ok "names the fix when this Claude Code has no --cloud" '[[ $out == *"has no --cloud"* ]]'
 
 echo "worktree.sh pr"
+g branch claude/feature origin/claude/feature 2>/dev/null; g switch -q claude/feature; echo local > local.txt; g add local.txt; g commit -qm "unpushed"; g switch -q main
 out=$(scripts/ai/worktree.sh pr 5 2>&1); dir="$w/app-pr5"
+ok "an existing local branch is used as it is, never reset to origin" '[[ $(git -C "$dir" rev-list --count origin/claude/feature..HEAD) == 1 && $out == *"1 commit(s) ahead of origin"* ]]'
 ok "checks out the PR's existing branch in its own worktree" '[[ -d $dir && $(git -C "$dir" rev-parse --abbrev-ref HEAD) == claude/feature ]]'
 ok "the branch tracks origin, so a push updates the PR" '[[ $(git -C "$dir" rev-parse --abbrev-ref @{u}) == origin/claude/feature ]]'
 out=$(scripts/ai/worktree.sh pr 5 2>&1)
@@ -61,7 +63,9 @@ echo "worktree.sh prune"
 out=$(PR_STATE=OPEN scripts/ai/worktree.sh prune 2>&1)
 ok "an open PR's worktree is kept" '[[ -d $dir && $out == *"removed 0"* ]]'
 echo dirty >> "$dir/f.txt"; out=$(PR_STATE=MERGED scripts/ai/worktree.sh prune 2>&1)
-ok "a merged PR's worktree with uncommitted work is kept, and says why" '[[ -d $dir && $out == *"uncommitted work"* ]]'
-git -C "$dir" checkout -q f.txt; out=$(PR_STATE=MERGED scripts/ai/worktree.sh prune 2>&1)
+ok "a merged PR's worktree with uncommitted work is kept, and says why" '[[ -d $dir && $out == *"uncommitted or untracked"* ]]'
+git -C "$dir" checkout -q f.txt; echo scratch > "$dir/notes.txt"; out=$(PR_STATE=MERGED scripts/ai/worktree.sh prune 2>&1)
+ok "an untracked file keeps it too (git would refuse the removal)" '[[ -d $dir && $out == *"untracked"* ]]'
+rm "$dir/notes.txt"; git -C "$dir" push -q origin claude/feature 2>/dev/null; out=$(PR_STATE=MERGED scripts/ai/worktree.sh prune 2>&1)
 ok "a merged PR's clean worktree is removed" '[[ ! -d $dir && $out == *"removed 1"* ]]'
 echo "$pass passed, $fail failed"; exit $fail
