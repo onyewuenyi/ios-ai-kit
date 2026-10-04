@@ -19,6 +19,7 @@ the PR template) are only created when missing. Idempotent: run it again to upgr
 
 import argparse
 import hashlib
+import time
 import json
 import re
 import shutil
@@ -47,7 +48,25 @@ def run(*cmd: str, cwd: Path) -> str:
     return r.stdout
 
 
+def existing_env(repo: Path) -> dict[str, str]:
+    vals = {}
+    try:
+        for line in (repo / ".claude/ios.env").read_text().splitlines():
+            m = re.match(r"\s*([A-Z][A-Z0-9_]*)=(.*)", line)
+            if m:
+                vals[m.group(1)] = m.group(2).strip()
+    except OSError:
+        pass
+    return vals
+
+
 def detect(repo: Path, scheme: str | None, container: str | None) -> dict:
+    # An existing .claude/ios.env is the team's word on scheme and container: a re-run must not
+    # re-detect past it and leave the CLAUDE.md block disagreeing with it.
+    env = existing_env(repo)
+    explicit_scheme = scheme
+    container = container or env.get("WORKSPACE") or env.get("PROJECT") or None
+    scheme = scheme or env.get("SCHEME") or None
     if container:
         c = Path(container)
     else:
@@ -65,7 +84,12 @@ def detect(repo: Path, scheme: str | None, container: str | None) -> dict:
     if not schemes:
         sys.exit("the project has no schemes: open it in Xcode once (or share a scheme), then re-run")
     if scheme and scheme not in schemes:
-        sys.exit(f"scheme {scheme!r} not found; available: {schemes}")
+        if scheme == env.get("SCHEME") and scheme != explicit_scheme:
+            log.append(f"warning  .claude/ios.env names scheme {scheme!r}, which the project does not have "
+                       f"(available: {schemes}); detected one instead, fix ios.env if it is wrong")
+            scheme = None
+        else:
+            sys.exit(f"scheme {scheme!r} not found; available: {schemes}")
     scheme = scheme or sorted(schemes, key=lambda s: (s.lower() != c.stem.lower(), "test" in s.lower(), s))[0]
     raw = run("xcodebuild", "-showBuildSettings", "-json", kind, str(c), "-scheme", scheme,
               "-destination", "generic/platform=iOS Simulator", cwd=repo)
@@ -292,6 +316,9 @@ def main() -> int:
         copy_tree(rel, repo, a.dry_run, overwrite=True)
     for rel in CREATE_IF_MISSING:
         copy_tree(rel, repo, a.dry_run, overwrite=False)
+    screens = repo / ".claude/ios-screens.txt"
+    if not a.dry_run and screens.exists() and "#seen:TODAY" in screens.read_text():
+        screens.write_text(screens.read_text().replace("#seen:TODAY", time.strftime("#seen:%Y-%m-%d")))
     write_env(repo, d, a.dry_run)
     merge_settings(repo, a.dry_run)
     merge_mcp(repo, a.dry_run)
@@ -304,11 +331,27 @@ def main() -> int:
     include = ["CLAUDE.local.md"] + [str(p.relative_to(repo)) for p in repo.glob("**/GoogleService-Info.plist")
                                      if ".build" not in p.parts and "DerivedData" not in p.parts]
     merge_lines(repo, ".worktreeinclude", include, a.dry_run)
-    print("\n".join("  " + l.replace(str(repo) + "/", "") for l in log))
-    print(f"\n{'(dry run: nothing written) ' if a.dry_run else ''}Next: cd {repo} && scripts/ai/bootstrap.sh")
-    print("Then: scripts/ai/doctor.sh lists the steps only you can take (trust the folder, gh auth login,\n"
-          "      scripts/ai/protect-main.sh). Propose these files like any change: commit on a branch,\n"
-          "      then scripts/ai/pr.sh. Never push to the default branch.")
+    # Routine "same"/"kept"/"skipped" lines collapse to a count; only changes and warnings are listed.
+    routine = lambda l: l.startswith(("same ", "kept ")) and "edited" not in l and "already sets" not in l
+    changed = [l for l in log if not routine(l)]
+    print("\n".join("  " + l.replace(str(repo) + "/", "") for l in changed))
+    if len(log) - len(changed):
+        print(f"  {'same':8} {len(log) - len(changed)} file(s) already current")
+    dry = "(dry run: nothing written) " if a.dry_run else ""
+    bootstrapped = (repo / ".claude/ios.local.env").exists()
+    upgrade = any(l.startswith(("updated ", "merged ", "extended ")) for l in log) and not any(l.startswith("added    scripts") for l in log)
+    print()
+    if not bootstrapped:
+        print(f"{dry}Next, once per Mac:\n    cd {repo} && scripts/ai/bootstrap.sh")
+        print("Then see what only you can set up (trust, gh auth login, protect-main.sh):\n    scripts/ai/doctor.sh")
+    elif any(l.startswith(("added ", "updated ", "merged ", "extended ")) for l in log):
+        print(f"{dry}{'Upgraded' if upgrade else 'Installed'}. Anything left to set up:\n    scripts/ai/doctor.sh")
+    else:
+        print(f"{dry}Already current. Nothing to do.")
+        return 0
+    if any(l.startswith(("added ", "updated ", "merged ", "extended ")) for l in log):
+        print("Propose these files like any change (never push to the default branch):\n"
+              "    git switch -c claude/ios-ai-kit && git add scripts/ai .claude CLAUDE.md docs && git commit -m 'ios-ai-kit' && scripts/ai/pr.sh")
     return 0
 
 

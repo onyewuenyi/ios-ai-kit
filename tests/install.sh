@@ -57,6 +57,18 @@ ok "--statusline writes it to the gitignored local settings" 'grep -q "scripts/a
 printf '{"statusLine":{"type":"command","command":"mine"}}\n' > "$r/.claude/settings.local.json"; python3 "$kit/install.py" "$r" --statusline >/dev/null 2>&1
 ok "an existing status line is never replaced" 'grep -q "\"mine\"" "$r/.claude/settings.local.json"'
 
+echo "ios.env is the team's word"
+r=$(fresh); python3 "$kit/install.py" "$r" >/dev/null 2>&1
+ok "a fresh screens file is stamped with today's date" 'grep -q "^#seen:$(date +%Y-%m-%d)$" "$r/.claude/ios-screens.txt"'
+sed -i '' 's/^SCHEME=Plantly$/SCHEME=Gone/' "$r/.claude/ios.env"; out=$(python3 "$kit/install.py" "$r" 2>&1)
+ok "a stale scheme in ios.env warns and falls back, never aborts the upgrade" '[[ $out == *"warning  .claude/ios.env names scheme"* && $out == *"scheme Plantly"* ]]'
+ok "an explicit --scheme that does not exist still fails" '! python3 "$kit/install.py" "$r" --scheme Gone >/dev/null 2>&1'
+sed -i '' 's/^SCHEME=Gone$/SCHEME=Plantly/' "$r/.claude/ios.env"; python3 "$kit/install.py" "$r" >/dev/null 2>&1
+echo "SIM_UDID=X" > "$r/.claude/ios.local.env"; out=$(python3 "$kit/install.py" "$r" 2>&1)
+ok "an unchanged upgrade says so in one line" '[[ $out == *"Already current. Nothing to do."* && $out != *"bootstrap.sh"* ]]'
+out=$(python3 "$kit/install.py" "$r" 2>&1 | grep -c "^  same     [A-Za-z.]")
+ok "unchanged files collapse to a count" '[[ $out == 0 ]]'
+
 echo "workspace projects"
 r=$(fresh); mkdir -p "$r/App.xcworkspace"
 printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version="1.0"><FileRef location="group:Plantly.xcodeproj"></FileRef></Workspace>\n' > "$r/App.xcworkspace/contents.xcworkspacedata"

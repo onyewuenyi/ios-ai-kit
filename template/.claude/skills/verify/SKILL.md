@@ -2,7 +2,7 @@
 name: verify
 description: Run the full definition-of-done gate for this iOS repo (format, build with no new warnings, tests, Release-safety of launch arguments, blast radius, and the visual matrix judged by eye) and write the PR-ready report. Use for /verify, "run the gate", "is this ready to merge", before opening a PR, and on every branch a cloud session produced.
 disable-model-invocation: true
-argument-hint: "[--no-visual] [--no-tests] [screen names…]"
+argument-hint: "[--no-visual] [--no-tests] [--release] [screen names…]"
 ---
 
 # Verify

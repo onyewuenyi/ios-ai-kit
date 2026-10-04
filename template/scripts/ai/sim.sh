@@ -74,5 +74,5 @@ destroy)
   xcrun simctl shutdown "$SIM_UDID" 2>/dev/null || true; xcrun simctl delete "$SIM_UDID" 2>/dev/null || true
   grep -v '^SIM_UDID=' "$LOCAL_ENV" > "$LOCAL_ENV.tmp" 2>/dev/null || true; mv "$LOCAL_ENV.tmp" "$LOCAL_ENV"
   echo "deleted simulator $SIM_UDID" ;;
-*) sed -n '2,22p' "$0"; exit 2 ;;
+*) sed -n '2,19p' "$0"; exit 2 ;;
 esac

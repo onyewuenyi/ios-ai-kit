@@ -43,7 +43,7 @@ _load_env "$AI_ROOT/.claude/ios.env"
 : "${TEST_FLAGS:=}"
 : "${SOURCE_DIRS:=.}"
 : "${BASE_LAUNCH_ARGS:=}"
-[[ -n ${SCHEME:-} ]] || die "SCHEME is not set: run the kit's install.sh, or set it in .claude/ios.env"
+[[ -n ${SCHEME:-} ]] || die "SCHEME is not set: run ios-ai-kit's install.py on this repo, or set it in .claude/ios.env"
 
 # The -project/-workspace pair every xcodebuild call needs.
 xc_container() {
