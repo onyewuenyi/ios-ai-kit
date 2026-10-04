@@ -11,6 +11,8 @@ Exit 1 on any FAIL. Symbol-based checks are heuristics and report WARN, never FA
 with the symbol that triggered them as evidence.
 """
 
+from __future__ import annotations
+
 import os
 import plistlib
 import re

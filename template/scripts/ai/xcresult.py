@@ -11,6 +11,8 @@ test:  prints `fail <test id>: <message> [<file>:<line>]` per failure and one `t
        Exit 1 on any failure, or when no test ran at all.
 """
 
+from __future__ import annotations
+
 import json
 import re
 import subprocess

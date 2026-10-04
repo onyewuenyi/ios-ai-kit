@@ -8,6 +8,8 @@ nothing on the default branch with nothing ahead); "need you" from /lead's cache
 files only, so it stays fast. Opt in per developer: install.py --statusline (writes the gitignored
 .claude/settings.local.json, never over a status line you already have).
 """
+from __future__ import annotations
+
 import json
 import os
 import sys

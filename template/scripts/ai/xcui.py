@@ -21,6 +21,8 @@ XcodeListWorkspaces / XcodeOpenWorkspace (a path is rejected); deviceIdentifier 
 a session id that was "recently used" is refused, so every attempt gets a fresh one.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import re

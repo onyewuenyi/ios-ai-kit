@@ -12,12 +12,15 @@ you take it back. Each open PR you authored lands in exactly one bucket:
   healthy     checks running, mergeability being computed, a fresh draft: counted, never listed
   done        merged, closed or abandoned since you last looked: reported once
 
-usage: prs.py [--json] [--quiet] [--mark-seen] [--all] [--abandon N | --take-back N | --ignore N]
+usage: prs.py [--json] [--quiet] [--mark-seen] [--all] [--abandon N | --take-back N | --ignore N | --check N]
+       --check N   one PR as JSON; exit 0 only when it is merge-ready (merge.sh relies on it)
        prs.py --from fixture.json        (classify recorded data; tests)
 --quiet prints nothing when the actionable set is what --mark-seen last recorded (/loop /lead).
 Always caches the digest to $STATE_DIR/prs.json for the SessionStart bearings. Never raises: with
 no GitHub CLI it prints one line and exits 0.
 """
+from __future__ import annotations
+
 import json
 import re
 import subprocess
@@ -319,6 +322,15 @@ def main(argv: list[str]) -> int:
             print(f"prs: {e}")
             return 0
     d = digest(data, env(), lead, history.rows(sd / "verify.tsv"), cloud_rows(sd), unpushed_by_branch(), now)
+    if "--check" in args:  # one PR's verdict, for merge.sh: exit 0 only when it is merge-ready
+        n = int(args[args.index("--check") + 1])
+        item = next((i for i in d["items"] if i["number"] == n), None)
+        if item is None:
+            known = any(p.get("number") == n for p in data["prs"])
+            item = {"number": n, "bucket": "healthy" if known else "unknown",
+                    "action": "", "why": "checks or mergeability pending" if known else "not an open PR of yours"}
+        print(json.dumps(item))
+        return 0 if item.get("action") == "merge-ready" else 1
     write_atomic(sd / "prs.json", json.dumps(d, indent=1))
     if "cloud_resolved" in lead:
         write_atomic(lead_path, json.dumps(lead, indent=1))

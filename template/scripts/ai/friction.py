@@ -19,6 +19,8 @@ usage: friction.py [--since 7d] [--json] [--waste] [--transcripts DIR]
 Stamps $STATE_DIR/friction.last on every run. If more than a fifth of the transcript lines cannot be
 read, it says the format changed and proposes nothing, rather than guess.
 """
+from __future__ import annotations
+
 import calendar
 import json
 import os
@@ -33,7 +35,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # never leave __pycache__ in the project's scripts/ai
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import history  # noqa: E402
-from kit import repo_root, state_dir  # noqa: E402
+from kit import git, repo_root, state_dir  # noqa: E402
 
 # Exact read-only subcommands only: a rule on "gh pr" would also allow "gh pr merge", and one on
 # "git branch" would allow "git branch -D".
@@ -45,6 +47,20 @@ READONLY = {"git status", "git diff", "git log", "git show", "git rev-parse", "g
 UTILITIES = {"ls", "cat", "head", "tail", "grep", "rg", "wc", "file", "stat", "du", "df", "which", "pwd"}
 TWO_WORD = {"git", "gh", "xcrun", "xcodebuild", "swift", "defaults", "npm", "brew"}
 HOOK = re.compile(r"^(PreToolUse|PostToolUse|PermissionRequest):(\w+) hook error: (.*)", re.S)
+
+
+_trees: dict[str, list[Path]] = {}
+
+
+def in_repo(cwd: Path, root: Path) -> bool:
+    """The repo, a Claude worktree under it, or one of its git worktrees (worktree.sh makes siblings)."""
+    key = str(root)
+    if key not in _trees:
+        out = git("worktree", "list", "--porcelain", cwd=root)
+        _trees[key] = [root.resolve(), root.resolve() / ".claude/worktrees"] + [
+            Path(l[9:]).resolve() for l in out.splitlines() if l.startswith("worktree ")]
+    c = cwd.resolve()
+    return any(c == t or str(c).startswith(str(t) + "/") for t in _trees[key])
 
 
 def mangle(p: Path) -> str:
@@ -143,9 +159,7 @@ def scan(files: list[Path], since: float, root: Path | None = None) -> dict:
                     except ValueError:
                         pass
                 cwd = d.get("cwd")
-                if root is not None and isinstance(cwd, str) and cwd and not (
-                        Path(cwd).resolve() == root.resolve()
-                        or str(Path(cwd).resolve()).startswith(str(root.resolve() / ".claude/worktrees") + "/")):
+                if root is not None and isinstance(cwd, str) and cwd and not in_repo(Path(cwd), root):
                     continue  # a sibling repo whose mangled name extends this one, or a worktree elsewhere
                 s["sessions"].add(sid)
                 t, msg = d.get("type"), d.get("message") or {}

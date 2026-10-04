@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0 (2026-10-03)
+
+One idea to a merged PR, with an AI judge on the screenshots, and pstack ported to Claude Code and iOS. `tests/run.sh` now runs 530 cases.
+
+- **`/ship "<idea>"`** runs the whole road: outcome and check, a branch from `origin/main`, the matching playbook, the changed screen added to the visual matrix, `/verify`, `pr.sh`, then `merge.sh`. Invoking it is consent to merge that one change; `--no-merge` stops at merge-ready.
+- **An AI judge on the visual gate.** `scripts/ai/judge.py` sends each sheet to a separate, read-only Claude call with a fixed checklist, the intended change (`VERIFY_INTENT`, else the branch's commit subjects) and the app's conventions from `.claude/judge-notes.md`. The model only judges: the script requires a PASS or FAIL with evidence for every screen and records it through `history.py judge`, and anything else leaves the commit unverified. Bracketed on a real app: known-good sheets PASS, a known clip at the largest text size FAILs on the exact clipped words. `VISUAL_JUDGE=human` keeps judging by eye.
+- **`scripts/ai/merge.sh <n> --yes [--wait <secs>]`** merges only a PR that `prs.py --check` calls merge-ready at its exact head, waits for running checks, confirms GitHub merged it, deletes the branch and fast-forwards the local default branch. Refused in cloud sessions and without `--yes`. `MERGE_METHOD` picks merge, squash or rebase.
+- **pstack, ported** ([pstack](https://github.com/poteto/pstack) 0.15.9 by Lauren Tan, MIT; the full map is `docs/pstack-port.md`):
+  - `ios-loop` is now the router pstack's poteto-mode is: non-negotiable triggers, a principles index, autonomy, subagents by Claude model role, how to write the reply, and 28 playbooks.
+  - 28 `principle-<name>` skills (pstack's 24 in Swift, plus environment before code, extremes are the test, release is another app, additive data). They load only when cited. `principles.md` is retired.
+  - New playbooks: refactoring, runtime forensics, trace forensics (Instruments, `.ips`, memgraph, MetricKit), visual parity, authoring a skill, eval, babysit, shipping, orchestrate, autopilot-full, autopilot-stack, multi-phase plan, opening a PR, worktree cleanup, session pickup and pause safely (replacing handoff). Bug fix, feature, perf, hillclimb, investigation, prototype and autonomous merged both versions.
+  - New skills: `/how`, `/why`, `/architect` (with the eight design red flags in Swift), `/arena`, `/swarm`, `/figure-it-out`, `/correct`, `/benchmark-checklist`, `/blast-radius`, `/recall`, `/automate-me`, `/show-me-your-work`, `/tdd`, `/teach`, `/technical-writing`, `/unslop`, `/bro`, `/no-comments`, `swift-best-practices`. `/interrogate` gains a design lens and a lead judgment; `/reflect` merged both versions.
+  - Agents: `ios-agent` (the default for playbook subagents) and `comment-sicko`.
+  - `docs/guide/`: ten chapters, from setup to overnight runs.
+  - Model roles in `.claude/ios.env`: `MODEL_JUDGMENT`, `MODEL_CODE`, `MODEL_FAST` (and `JUDGE_MODEL`); `/ios-ai-kit:setup` offers them.
+- **Runs on macOS's own Python 3.9:** every kit Python file had used 3.10 type syntax at runtime, so `/usr/bin/python3` failed on `kit.py`. `tests/run.sh` now compiles and imports every module under it.
+- **`/friction`** also reads sessions from sibling worktrees made by `worktree.sh` (it had admitted only `.claude/worktrees`).
+- **The installer** derives the kit-owned list from the template, so a new skill can never be left un-upgraded, and removes retired files.
+- **`tests/standard.py`** exempts principles from the one-job markers (they must be `disable-model-invocation`), checks every `principle-<name>` a doc cites, and covers references and the guide.
+
 ## 0.5.2 (2026-10-03)
 
 An audit of the core flow: three read-only reviews (every doc and skill against the scripts, the Python, the shell), 48 findings verified, each fix with a test. `tests/run.sh` now runs 339 cases.

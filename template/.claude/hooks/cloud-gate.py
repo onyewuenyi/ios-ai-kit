@@ -16,6 +16,8 @@ the session forever, so it answers:
 Config (.claude/ios.env, overridable by the environment): CLOUD_BRANCH_PREFIX=claude/ ·
 CLOUD_PUBLISH=1 (0 = deny every publish too; the owner pushes by hand).
 """
+from __future__ import annotations
+
 import json
 import os
 import re

@@ -1,12 +1,22 @@
 # Prototype arena
 
-A design fork that a screenshot can settle: two or three layouts for a screen, a motion choice, an interaction model. Build the variants, look at them side by side, pick with evidence. Asking the human "which approach?" before this is asking them to imagine what you could have shown them.
+**You own the design decision, not the code. The prototype is a throwaway instrument. The real build follows `playbooks/feature.md`.**
 
-1. **Name the fork and the judging criteria** before building: what must be true (fits at the largest text size, one primary action, readable on iPad, the transition under 350 ms).
-2. **One variant per worktree:** `scripts/ai/worktree.sh new proto-a` (and `proto-b`, …). Each gets its own branch, DerivedData and simulator, so builds and installs never collide. Run a session in each (`cd ../<repo>-proto-a && claude`), or build them yourself in sequence. Each variant is the SMALLEST change that expresses the idea, behind the same seam.
-3. **Capture every variant identically:** same seed, same seam, same sizes (`large` and the largest accessibility size), same device. Motion gets a frame sheet per variant.
-4. **Compare side by side:** `scripts/ai/sim.sh compare out.png a.png b.png c.png` puts them in one labelled image. Look at it; judge against the criteria from step 1; record the verdict per criterion.
-5. **Keep one, delete the rest:** merge the winner's minimal change onto a clean branch, then `scripts/ai/worktree.sh remove <path>` the others (it deletes their simulators too).
-6. When the fork is a product call that no screenshot settles, bring the comparison image to the user as one decision (Decisions, in `principles.md`).
+A fork that something you can build and look at will settle. Two or three layouts for a screen, a motion choice, an interaction model, a density, or an empirical fork (which behavior, which timing, which approach). Asking the human "which approach?" before this is asking them to imagine what you could have shown them.
 
-**Reply:** the fork, the criteria, the comparison image path, the verdict per criterion, and the variant kept.
+This is the one playbook where the smallest-change rule and the verification bar invert. Speed over polish. Code quality does not matter, and there is no planning beyond the fork. The rigor is in picking the right design cheaply. Propose variants the user did not ask for, and throw an approach away to try another.
+
+1. **Scope the decision and the judging criteria** before building. The decision is which layout, which interaction, which density, or which behavior. The criteria are what must be true (fits at the largest text size, one primary action, readable on iPad, the transition under 350 ms). No decision means no prototype. Route to Feature. **Check.** The fork and each criterion are one line in the todo list.
+2. **Gather references when the design space is open.** Apple's Human Interface Guidelines, Apple's exported skills (`swiftui-specialist` and its siblings), the app's own screens, prior art in shipped apps. Summarize the directions (layouts, hierarchy, motion) and, if the space is wide, let the user pick directions before you build. Skip when the direction is set. **Check.** Two or three named directions, or `skip: direction set`.
+3. **Build each variant as a throwaway**, separate from any branch that ships.
+   - For a visual decision, one worktree per variant (`scripts/ai/worktree.sh new proto-a`, then `proto-b`). Each gets its own branch, DerivedData and simulator, so builds and installs never collide. Or put all variants behind one DEBUG launch argument in a single worktree (`-ProtoVariant a`), the cheap form of principle-exhaust-the-design-space. Each variant is the smallest change that expresses the idea, reached through the same seam, and labelled.
+   - For a behavioral or timing decision, write the smallest Swift script (`swift probe.swift`) or a probe test that exercises the question.
+   - No tests, no abstractions, no polish.
+
+   **Check.** Each variant builds and launches through the same seam, or the probe runs.
+4. **Capture every variant identically.** Same seed, same seam, same sizes (`large` and `accessibility-extra-extra-extra-large`, set with `scripts/ai/sim.sh size`), same appearance, same device type. Motion gets a frame sheet per variant (`scripts/ai/sim.sh record` then `scripts/ai/sim.sh frames`). For a behavioral or timing decision, observe the thing you are deciding by logging the timing or printing the output, N ≥ 5 runs for a timing. The observation is the test here, not an assertion. **Check.** One capture per variant per size, in one evidence directory.
+5. **Compare side by side.** `scripts/ai/sim.sh compare out.png a=a.png b=b.png c=c.png` puts the variants in one labelled image. Look at it. Judge each variant against each criterion from step 1 and record the verdict per criterion. **Check.** A filled table of variant by criterion.
+6. **Present the alternatives, the tradeoffs and a recommendation.** When the fork is a product or preference call that no capture settles, bring the comparison image to the user as one decision, recommendation first (principle-never-block-on-the-human). Keep working on everything that does not depend on it. **Check.** A recommendation is stated, with its evidence.
+7. **Hand off and clean up.** The chosen direction goes to Feature (or `/architect` for the shape) and is rebuilt there from a clean base. The winning variant's diff is a reference, not a commit. Remove every variant with `scripts/ai/worktree.sh remove <path>`, which also deletes its simulator. **Check.** No prototype code sits on a branch that will open a PR, and `scripts/ai/worktree.sh list` shows no proto worktrees.
+
+**Reply:** the fork and its criteria; the variants explored, including any the user did not ask for; the evidence (the comparison image path for a visual decision, the observed output or timing for a behavioral one); the verdict per criterion; tradeoffs; your recommendation; the scratch paths. Say plainly that the prototype is throwaway.

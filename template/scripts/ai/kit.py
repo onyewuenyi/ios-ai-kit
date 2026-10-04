@@ -3,6 +3,8 @@
 Same rules as lib.sh: configuration is environment > .claude/ios.local.env > .claude/ios.env, and
 state lives in git's common dir (shared by every worktree, never committed, survives rm -rf .build).
 """
+from __future__ import annotations
+
 import os
 import re
 import subprocess

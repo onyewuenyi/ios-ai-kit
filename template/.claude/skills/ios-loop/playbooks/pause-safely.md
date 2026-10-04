@@ -1,0 +1,12 @@
+# Pause safely
+
+**You own a clean stop. Leave a checkpoint a cold-start session can resume from.** Explicit only. On "keep going", "going to bed, keep going" or "don't stop", do not pause. That is `playbooks/autonomous.md`.
+
+1. **Stop at a safe boundary.** Finish the current atomic step or back out of it. Start nothing new. Stop your background subagents, builds and test runs. **Check.** No build, test or subagent you started is still running.
+2. **Get to a state that builds.** Run `scripts/ai/build.sh`. If it cannot build, say exactly what does not compile and why. **Check.** The build result is recorded, PASS or the failing `file:line`.
+3. **Take no irreversible action to pause.** No new PR, no merge, no push to anything but a branch that already has an open PR, and that only through `scripts/ai/pr.sh`. **Check.** `git log origin/<branch>..HEAD` is the only difference from before the pause, unless the branch already had a PR.
+4. **Make the work durable.** Commit what is yours, by path, as one clear `wip:` commit on the current branch. Never stage another session's uncommitted files, and never `git add -A` in a shared checkout. If the tree does not build, say so in one line of the commit body. **Check.** `git status --short` lists only files that are not yours.
+5. **Write the resume note where the next session will look.** The project's TODO, or a note file it names. For a context compaction, `.build/<slug>-resume.md` in this checkout. It holds the intent, what you were doing, what is done and its evidence, what is verified and what is not, the current state, the next step, the key files, the traps you hit, and the exact commands to resume (the worktree path, the simulator UDID from `scripts/ai/sim.sh udid`, the DerivedData path `.build/dd`, the seams and launch arguments). If a `/show-me-your-work` trail exists, point at it instead of repeating it. **Check.** A cold session given only this note and `git log` could name the next step.
+6. **Release what you started.** Shut down this checkout's simulator (`xcrun simctl shutdown <udid>`, by UDID) and any process you started. Keep the evidence (screenshots, reports, `.build/verify/`). **Check.** Nothing you started is running, and every evidence path in the note exists.
+
+**Reply:** where you are in the loop, what is on disk versus still only in your head (paths, no diff dumps), the commits you made and whether the tree is clean and builds, the resume note's path, and the first action on resume. This is a pause, not a final report.

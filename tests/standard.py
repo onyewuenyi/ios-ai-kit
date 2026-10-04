@@ -8,6 +8,9 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parent.parent
 T = KIT / "template"
+# the one agent built to change code: playbook steps delegate to it
+WORKERS = {"ios-agent"}
+WORKER_TOOLS = {"Read", "Edit", "Write", "Bash", "Grep", "Glob", "Skill"}
 MARKERS = ("**Job:**", "**Not my job:**", "**When there is nothing to report:**")
 EDITING = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 passed = failed = 0
@@ -44,7 +47,10 @@ for a in agents:
     check(f"{rel}: name, description and tools", all(fm.get(k) for k in ("name", "description", "tools")),
           f"missing {[k for k in ('name', 'description', 'tools') if not fm.get(k)]}")
     tools = {t.strip() for t in fm.get("tools", "").split(",")}
-    check(f"{rel}: cannot edit (read-only by design)", not (tools & EDITING), f"has {tools & EDITING}")
+    if a.stem in WORKERS:
+        check(f"{rel}: a worker carries no tool beyond the loop's", tools <= WORKER_TOOLS, f"has {tools - WORKER_TOOLS}")
+    else:
+        check(f"{rel}: cannot edit (read-only by design)", not (tools & EDITING), f"has {tools & EDITING}")
     missing = [m for m in MARKERS if m not in body]
     check(f"{rel}: job, anti-jobs, quiet answer", not missing, f"missing {missing}")
 for s in skills:
@@ -53,11 +59,16 @@ for s in skills:
     check(f"{rel}: name and description", bool(fm.get("name") and fm.get("description")))
     check(f"{rel}: description under 600 characters", len(fm.get("description", "")) <= 600,
           f"{len(fm.get('description', ''))}")
+    if s.parent.name.startswith("principle-"):
+        # a principle is a stance the loop cites, not a job: it must never load on its own
+        check(f"{rel}: loads only when cited", fm.get("disable-model-invocation") == "true")
+        continue
     missing = [m for m in MARKERS if m not in body]
     check(f"{rel}: job, anti-jobs, quiet answer", not missing, f"missing {missing}")
 
 # no dangling script references, no orphan scripts
 docs = [*agents, *skills, *(T / ".claude/skills").glob("*/playbooks/*.md"), *(T / ".claude/skills").glob("*/*.md"),
+        *(T / ".claude/skills").glob("*/references/*.md"), *(KIT / "docs/guide").glob("*.md"),
         T / "CLAUDE.block.md", T / "docs/ai-workflow.md", KIT / "README.md"]
 scripts = {p.name for p in (T / "scripts/ai").iterdir() if p.is_file()}
 dangling = set()
@@ -77,20 +88,20 @@ for name in sorted(scripts):
         orphans.append(name)
 check("every script in scripts/ai is used or documented somewhere", not orphans, ", ".join(orphans))
 
-# references by name: a /skill, a (`principles.md`, Title) citation, a --flag of a kit script
+# references by name: a /skill, a principle-<name> skill, a --flag of a kit script
 skill_names = {p.parent.name for p in skills}
-principles = set(re.findall(r"^\*\*([^*]+?)\*\*", (T / ".claude/skills/ios-loop/principles.md").read_text(), re.M))
-principle_titles = {t.split(" (")[0].strip() for t in principles}
 flag_src = {p.name: p.read_text() for p in (T / "scripts/ai").iterdir() if p.suffix in (".sh", ".py")}
 bad_refs = set()
 for d in docs:
     text = d.read_text()
-    for name in re.findall(r"(?<![\w/.`>])/([a-z][a-z-]+)\b", text):
+    for name in re.findall(r"(?<![\w/.`>*}])/([a-z][a-z-]+)\b", text):
         if name not in skill_names and name not in ("verify", "loop", "web-setup", "plugin", "ios-ai-kit", "doctor", "insights", "fewer-permission-prompts", "schedule", "init", "bin", "dev", "tmp", "usr", "var", "etc", "private", "Users", "Applications", "path", "p"):
             bad_refs.add(f"{d.relative_to(KIT)} → /{name}")
-    for title in re.findall(r"`principles\.md`, ([A-Z][^)]+)\)", text):
-        if title.strip() not in principle_titles:
-            bad_refs.add(f"{d.relative_to(KIT)} → principle '{title.strip()}'")
+    for name in re.findall(r"\bprinciple-([a-z][a-z-]*[a-z])\b", text):
+        if f"principle-{name}" not in skill_names and name != "name":
+            bad_refs.add(f"{d.relative_to(KIT)} → principle-{name}")
+    if re.search(r"(?<![\w-])principles\.md", text):
+        bad_refs.add(f"{d.relative_to(KIT)} → principles.md (retired: cite principle-<name>)")
     for script, flag in re.findall(r"scripts/ai/([a-z-]+\.(?:sh|py))(?:(?!scripts/ai/)[^`\n)])*?\s(--[a-z-]+)", text):
         src = flag_src.get(script, "")
         if flag not in src:

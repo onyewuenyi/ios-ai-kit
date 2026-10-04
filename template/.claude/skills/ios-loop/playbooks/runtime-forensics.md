@@ -1,0 +1,24 @@
+# Runtime forensics
+
+**You own the diagnosis. Instrument the live process, do not theorize from source.** The deliverable is a cited diagnosis, not a fix.
+
+For a symptom you can make happen now: a hang, a leak or growing memory, CPU spinning while the app sits idle, an energy drain, a visual glitch or hitch. When the capture already exists and you cannot re-run it, use `playbooks/trace-forensics.md`.
+
+A simulator app is a Mac process. The host's tools (`sample`, `spindump`, `leaks`, `vmmap`, `heap`, `footprint`, `lldb`) attach to it by pid, and its numbers are Mac numbers. Energy, thermal state, jetsam limits and real memory pressure exist only on a device. Keep every artifact under `.build/forensics/<slug>/`.
+
+1. **Pin the environment and the symptom.** Run `scripts/ai/doctor.sh` and `scripts/ai/sim.sh guard` (principle-environment-before-code). Reach the state through a seam (`scripts/ai/sim.sh launch <args>`) or a deep link, and record the surface (simulator or device), the build configuration and the commit. Find the process. On the simulator, `pgrep -x <executable>` on the Mac. On a device, `xcrun devicectl device info processes --device <id>`. **Check.** The symptom reproduces with a rate, on a named surface, with a pid.
+2. **Capture the live signal with the instrument that matches it.** A real artifact, not a guess. The simulator's UDID is `scripts/ai/sim.sh udid`. A device's comes from `xcrun devicectl list devices`.
+   - **Hang or stall.** `xcrun xctrace record --template 'Time Profiler' --instrument Hangs --device <udid> --attach <pid> --time-limit 30s --output .build/forensics/<slug>/hang.trace`, triggering the hang during the window. For a quick look on the simulator, `sample <pid> 10` or `sudo spindump <pid> 10`.
+   - **Idle CPU spin.** The same Time Profiler recording with the app left alone. Anything on-CPU with no input is the finding.
+   - **Leak or growth.** Launch with stack logging (`SIMCTL_CHILD_MallocStackLogging=1 scripts/ai/sim.sh launch <args>`), repeat the suspect action N times, and take a memory graph before and after with `leaks --outputGraph=.build/forensics/<slug>/after.memgraph <pid>`. `footprint <pid>` and `vmmap -summary <pid>` say which region grows. On a device, record `--template 'Leaks'` or `'Allocations'`.
+   - **Energy.** A device only, `--template 'Power Profiler'` over a fixed task.
+   - **Glitch or hitch.** `--template 'Animation Hitches'` or `'SwiftUI'`, plus a frame sheet (`scripts/ai/sim.sh record out.mov 8 & sleep 1; scripts/ai/sim.sh launch <seam>; wait`, then `scripts/ai/sim.sh frames out.mov sheet.png`).
+   - **State or ordering.** `xcrun simctl spawn "$(scripts/ai/sim.sh udid)" log stream --level debug --predicate 'subsystem == "<bundle id>"'` while you drive the app, plus `os_signpost` intervals read in the `Points of Interest` instrument.
+
+   **Check.** The artifact exists and covers the window in which the symptom happened.
+3. **Reduce the artifact to the smoking gun.** The frame on the hot path. The retainer chain from the leaked object to a root (`leaks --traceTree=<address> after.memgraph`, `malloc_history after.memgraph <address>`). The loop firing without input (a timer, an observation that invalidates a `body` every frame, a `Task` that never ends, a `NotificationCenter` observer that re-posts). Export a trace with `xcrun xctrace export --input <trace> --toc`, then `--xpath` for the table you need. Parse large artifacts in a subagent and keep the reduced finding in the main thread (principle-guard-the-context-window). **Check.** One named frame, object or loop, with its share of samples, bytes or wakeups.
+4. **Prove the mechanism before believing it.** Toggle it cheaply on the live process and watch the signal move. Attach `lldb -p <pid>`, set a breakpoint whose action logs and continues, or flip state with `expression`. Or add a temporary `Logger` line or `os_signpost`, or a DEBUG launch argument that disables the suspect, rebuild, and rerun the same capture. **Check.** The signal changes when the mechanism is toggled, and only then.
+5. **Map the finding back to source.** File, symbol, and the line that allocates, retains or schedules. Resolve a raw address with `atos -o <App.app.dSYM>/Contents/Resources/DWARF/<App> -l <load address> <address>`. **Check.** A file:line, or a plain statement of which symbols are missing.
+6. **Hand back the diagnosis.** Remove the temporary instrumentation. No fix unless asked. Route to `playbooks/bug-fix.md` or `playbooks/perf.md` once the cause is known. Write the throughput checkpoint as one line, `throughput checkpoint: n/a, read-only forensics`. **Check.** `git status` shows no instrumentation left behind.
+
+**Reply:** the signal captured (instrument, surface, build); the reduced finding with its numbers; how you proved the mechanism; the source location; the artifact paths; whether a device would read differently. No fix unless asked.
