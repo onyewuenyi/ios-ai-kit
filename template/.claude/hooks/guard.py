@@ -13,6 +13,8 @@
   every change reaches it through a pull request, so push a branch and open one with
   scripts/ai/pr.sh (deny). GitHub's ruleset (scripts/ai/protect-main.sh) is the hard lock.
 """
+from __future__ import annotations
+
 import json
 import re
 import shlex

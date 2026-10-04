@@ -8,6 +8,8 @@ continues and fixes it, or says plainly why it cannot. Never blocks twice in a r
 Silent in a cloud session (CLAUDE_CODE_REMOTE=true) and wherever xcodebuild is missing.
 Off for a session: IOS_AI_STOP_CHECK=0. Time budget: IOS_AI_STOP_TIMEOUT seconds (default 240).
 """
+from __future__ import annotations
+
 import json
 import os
 import shutil

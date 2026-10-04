@@ -19,6 +19,8 @@ it); pass --strict-env to fail on them too.
 usage: debug-fences.py [--strict-env] <dir> [<dir> ...]   exit 1 when an argument read is unfenced
 """
 
+from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path

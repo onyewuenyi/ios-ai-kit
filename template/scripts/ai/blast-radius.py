@@ -12,6 +12,8 @@ usage: blast-radius.py [--diff "<git diff args>"] [--src <app source dir>] [path
   paths limit the diff to your own files when the checkout carries other work.
 """
 
+from __future__ import annotations
+
 import argparse
 import re
 import subprocess

@@ -17,6 +17,8 @@ replaced on every run: change them in ios-ai-kit, not here. Files a team edits (
 the PR template) are only created when missing. Idempotent: run it again to upgrade.
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import time
@@ -28,11 +30,14 @@ import sys
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parent / "template"
-KIT_OWNED = ["scripts/ai", ".claude/hooks", ".claude/skills/ios-loop", ".claude/skills/verify",
-             ".claude/skills/lead", ".claude/skills/interrogate", ".claude/skills/reflect",
-             ".claude/skills/friction", ".claude/skills/map",
-             ".claude/rules/ios27-swift.md", ".claude/agents/build-verify.md", ".claude/agents/ui-verify.md", ".claude/agents/review-lens.md"]
-CREATE_IF_MISSING = [".claude/ios-screens.txt", ".github/pull_request_template.md"]
+# Every kit skill and agent is kit-owned, derived from the template (never a hand-kept list: a list
+# here drifted from the template twice). A repo's own skills and agents, with other names, are untouched.
+KIT_OWNED = (["scripts/ai", ".claude/hooks", ".claude/rules/ios27-swift.md"]
+             + sorted(f".claude/skills/{d.name}" for d in (KIT / ".claude/skills").iterdir() if d.is_dir())
+             + sorted(f".claude/agents/{f.name}" for f in (KIT / ".claude/agents").glob("*.md")))
+# Files an earlier kit version installed that a later one retired; an upgrade removes them.
+RETIRED_FILES = [".claude/skills/ios-loop/playbooks/handoff.md", ".claude/skills/ios-loop/principles.md"]
+CREATE_IF_MISSING = [".claude/ios-screens.txt", ".claude/judge-notes.md", ".github/pull_request_template.md"]
 GITIGNORE = [".build/", "__pycache__/", ".claude/ios.local.env", "CLAUDE.local.md", ".claude/settings.local.json", ".claude/worktrees/"]
 # Rules an earlier kit version wrote that were wrong; an upgrade removes them.
 RETIRED_RULES = ["mcp__xcode__DeviceEventSynthesize", "mcp__xcode__XcodeListWindows",
@@ -262,7 +267,13 @@ ENV_DEFAULTS = ["# Cloud sessions (no human to answer a prompt): the gate pushes
              "CLOUD_BRANCH_PREFIX=claude/", "CLOUD_PUBLISH=1",
              "# /lead: post verify reports on PRs, push its fixes, rebase instead of merging the base (0 = ask/never);",
              "# a PR idle this many days is 'stalled'; a cloud task with no PR after this many hours needs you.",
-             "LEAD_COMMENT=0", "LEAD_PUSH=0", "LEAD_REBASE=0", "LEAD_STALE_DAYS=3", "LEAD_NO_PR_HOURS=6"]
+             "LEAD_COMMENT=0", "LEAD_PUSH=0", "LEAD_REBASE=0", "LEAD_STALE_DAYS=3", "LEAD_NO_PR_HOURS=6",
+             "# Who judges /verify's screenshots: ai (judge.py, a separate Claude call) or human (history.py judge).",
+             "VISUAL_JUDGE=ai",
+             "# Claude models per role (opus, sonnet, haiku, …); empty = Claude Code's default. JUDGE_MODEL overrides MODEL_JUDGMENT for the visual judge.",
+             "MODEL_JUDGMENT=", "MODEL_CODE=", "MODEL_FAST=", "JUDGE_MODEL=",
+             "# How merge.sh lands a PR: merge, squash or rebase.",
+             "MERGE_METHOD=merge"]
 
 
 def write_env(repo: Path, d: dict, dry: bool) -> None:
@@ -341,6 +352,11 @@ def main() -> int:
         copy_tree(rel, repo, a.dry_run, overwrite=True)
     for rel in CREATE_IF_MISSING:
         copy_tree(rel, repo, a.dry_run, overwrite=False)
+    for rel in RETIRED_FILES:
+        if (repo / rel).exists():
+            if not a.dry_run:
+                (repo / rel).unlink()
+            log.append(f"removed  {rel} (retired by the kit)")
     screens = repo / ".claude/ios-screens.txt"
     if not a.dry_run and screens.exists() and "#seen:TODAY" in screens.read_text():
         screens.write_text(screens.read_text().replace("#seen:TODAY", time.strftime("#seen:%Y-%m-%d")))

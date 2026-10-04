@@ -8,6 +8,8 @@ verified, PRs that need the owner (from /lead's cached digest, with its age), do
 healthchecks gone stale. Cheap by contract: git and files only, never the network or xcodebuild.
 Fails open: any error prints nothing.
 """
+from __future__ import annotations
+
 import json
 import os
 import sys

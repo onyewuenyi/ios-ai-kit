@@ -43,9 +43,21 @@ The kit automates everything it can. These steps need a person, a browser, or a 
 1. Work and commit as usual, on any branch, even `main`.
 2. `/verify` runs the gates and writes the report.
 3. `scripts/ai/pr.sh` opens the pull request with that report as its description. Commits made on `main` move onto a new `claude/<topic>` branch first and your `main` goes back to `origin/main`, so nothing is lost and nothing reaches `main` directly. Run it again after more commits and it updates the same PR.
-4. You review and merge on GitHub. Claude asks before `gh pr merge` and never merges its own PR.
+4. You review and merge on GitHub, or `/ship` merges it for you (below). Claude merges only through `scripts/ai/merge.sh`, which refuses any PR not verified at its exact head.
 
 A direct push to the default branch is refused three times over: the guard hook (with the reason and `pr.sh` as the way forward), the cloud gate in cloud sessions, and GitHub's ruleset from `protect-main.sh`, which is the one that holds for every tool and every person.
+
+## One idea to a merged PR: `/ship`
+
+`/ship "<the idea, and how you will know it works>"` runs the whole road and stops only on a failure it cannot fix:
+
+1. It writes the outcome and the observation that proves it, then branches from `origin/main`.
+2. It builds through the matching playbook, adds the changed screen to `.claude/ios-screens.txt` if the visual gate cannot see it yet, and runs `/verify` with that intent.
+3. **An AI judge looks at every screenshot sheet** (default, dark and the largest text size). `scripts/ai/judge.py` makes a separate, read-only Claude call with a fixed checklist, the intended change and your app's conventions from `.claude/judge-notes.md`. The model only judges; the script checks that every screen got a PASS or FAIL with evidence and records it. Anything else is no verdict, and the commit stays unverified. `VISUAL_JUDGE=human` keeps the judging with a person.
+4. A FAIL is the next piece of work, three attempts per gate, then a draft PR and a report.
+5. `scripts/ai/pr.sh` opens the PR with the report, then `scripts/ai/merge.sh <n> --yes` merges it only when it is merge-ready at its head (gates passed, screens judged, mergeable, checks green, no open threads), waits for running checks, deletes the branch and updates your local `main`.
+
+Invoking `/ship` is consent to merge that one change. `--no-merge` stops at merge-ready. Cloud sessions never merge.
 
 ## The lead: work is done when it is merged
 
@@ -73,10 +85,15 @@ It does the needs-work itself (`scripts/ai/worktree.sh pr <n>` checks out the PR
 
 ## Playbooks, review and lessons
 
-- **Playbooks:** `ios-loop` routes every non-trivial task to one whose steps end in evidence: bug fix, feature, UI pass, prototype arena (variants in worktrees, compared side by side), investigation, perf, hillclimb, schema change, release, device run, delegate, autonomous run, handoff. `principles.md` holds the eleven principles behind them, each with its trigger.
+- **Playbooks:** `ios-loop` routes every non-trivial task to one whose steps end in evidence: 28 of them, from bug fix and feature to runtime forensics, babysit, shipping and autopilot. The router names the trigger for each of the 28 `principle-<name>` skills, and replies cite the ones that shaped a decision.
 - **`/interrogate`:** one read-only reviewer per lens the diff can fail on (concurrency, persistence, lifecycle, extremes, accessibility, privacy and App Review, performance, slop), a second Claude model on the riskiest, and only findings it verified.
 - **`/reflect`:** turns a session's lessons into the strongest structure that would have prevented them: a type, a test, a hook, a script, a screen line, a playbook step, a rule.
 - **`/map`:** builds and refreshes `.claude/ios-screens.txt` from the app's own seams and its live accessibility labels; the visual gate refuses a screen whose seam the app no longer reads.
+
+- **Design and review skills, from pstack:** `/how` and `/why` explain before you change, `/architect` sketches the design twice before code (with eight design red flags in Swift), `/arena` and `/swarm` fan out Claude subagents in their own worktrees, `/figure-it-out` designs a bespoke playbook for a large effort, `/correct` turns repeated corrections into enforced rules, `/benchmark-checklist` vets a number before you trust it, `/tdd`, `/unslop`, `/no-comments`, `/technical-writing` and `swift-best-practices` keep the code and prose clean.
+- **Subagents** run as `ios-agent` with a Claude model per role from `.claude/ios.env` (`MODEL_JUDGMENT`, `MODEL_CODE`, `MODEL_FAST`).
+
+[The guide](docs/guide/README.md) walks through it all in ten chapters, from setup to overnight runs.
 
 Every agent and skill states its job, what is not its job, and its one-line answer when there is nothing to report; `tests/standard.py` enforces it, along with "no script referenced that does not exist, no script that nothing uses".
 
@@ -84,7 +101,7 @@ Every agent and skill states its job, what is not its job, and its one-line answ
 
 | | |
 |---|---|
-| **`/verify`** | Gates written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. The sheets read `JUDGE` until someone looks; `history.py judge PASS|FAIL` records the verdict, and only then is the commit verified. 7, with `--release`, the **release gate**: the Release simulator build audited for submission blockers (advisory for signing; `scripts/ai/release.sh <App.xcarchive>` audits a real archive) (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). Ends by offering `pr.sh`. |
+| **`/verify`** | Gates written up as a PR-ready report. 1 format. 2 build with **no new warnings** (the baseline is recorded from a clean build on first run). 3 tests, read from the `.xcresult`. 4 no launch-argument read outside `#if DEBUG`. 5 blast radius. 6 the **visual matrix**: each screen in `.claude/ios-screens.txt` at default, dark and AX5, plus **UI-hierarchy assertions** (`expect:` / `absent:`, matched against accessibility labels) through Xcode's device interaction. An AI judge (`judge.py`) rules PASS or FAIL on each sheet with its evidence; with no verdict, or `VISUAL_JUDGE=human`, the sheets read `JUDGE` until a person records `history.py judge PASS|FAIL`. Only a judged pass makes the commit verified. 7, with `--release`, the **release gate**: the Release simulator build audited for submission blockers (advisory for signing; `scripts/ai/release.sh <App.xcarchive>` audits a real archive) (export compliance, icon, launch screen, iPad orientations, privacy manifests and required-reason APIs, usage strings, debug residue, launch-argument seams). Ends by offering `pr.sh`. |
 | **`/lead`, `prs.py`** | Every open PR sorted by who has to act; the lead does the needs-work on each PR's own branch. |
 | **`cloud.sh`** | One no-Xcode unit to a cloud session, tracked to a merged PR. |
 | **Bearings, `/friction`, verify history** | What is off at session start; what keeps costing time; every gate of every run. |
@@ -114,7 +131,7 @@ Four layers; each says what it does NOT guarantee.
 
 ## Tested
 
-`tests/run.sh` runs every suite with no simulator build (339 cases: the guard, the cloud gate, `pr.sh`, verify history, gate scope, the PR digest, delegation, bearings and the status line, friction, screen drift, the one-job standard and the installer), plus syntax checks on stock `/bin/bash` 3.2 and python3. `claude plugin validate .` passes for the plugin and the marketplace manifest. Proven live on a brand-new app and on a production app with about 1,230 tests:
+`tests/run.sh` runs every suite with no simulator build (530 cases: the guard, the cloud gate, `pr.sh`, verify history, gate scope, the PR digest, delegation, bearings and the status line, friction, screen drift, the AI judge and merge.sh, the one-job standard and the installer), plus syntax checks on stock `/bin/bash` 3.2, python3 and macOS's own python3 3.9. `claude plugin validate .` passes for the plugin and the marketplace manifest. Proven live on a brand-new app and on a production app with about 1,230 tests:
 
 - **Bootstrap:** from a fresh install to a passing smoke test.
 - **`/verify`:** all gates. The visual gate caught a blank empty state every mechanical gate passed, and two text clips at the largest text size.
@@ -123,6 +140,10 @@ Four layers; each says what it does NOT guarantee.
 - **Cloud sessions:** one ran to an open PR with no prompt; one told to push to `main` left it untouched and pushed its own branch.
 - **Parallel worktrees:** two test runs at once, each on its own simulator.
 - **Xcode device interaction:** start a session, launch, assert the hierarchy, in both directions.
+
+## Credits
+
+The playbooks, principles and design skills port [pstack](https://github.com/poteto/pstack) by Lauren Tan (MIT), reframed from Cursor to Claude Code and from the web to iOS. [NOTICE.md](NOTICE.md) carries its license; [docs/pstack-port.md](docs/pstack-port.md) maps every pstack file to its place here.
 
 ## Migrating from ios-stack
 

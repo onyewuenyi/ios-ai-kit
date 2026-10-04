@@ -8,6 +8,8 @@
   --seams  also list the seams the code reads that no screen uses (candidates for /map).
 usage: screens-drift.py [--seams] [source dirs… (default: SOURCE_DIRS from .claude/ios.env)]
 """
+from __future__ import annotations
+
 import re
 import sys
 import time

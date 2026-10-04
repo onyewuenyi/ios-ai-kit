@@ -13,6 +13,8 @@ Columns: ts run_id sha branch dirty gate result secs summary. A gate row per gat
                             after a PASS here. Also stamps .build/verify/report.md.
 Imported by prs.py, friction.py and bearings.py, so the format is parsed in one place.
 """
+from __future__ import annotations
+
 import statistics
 import time
 import subprocess

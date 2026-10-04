@@ -12,6 +12,8 @@ r=$(fresh); out=$(python3 "$kit/install.py" "$r" 2>&1)
 ok "detects project, scheme, bundle and synchronized folders" '[[ $out == *"Plantly.xcodeproj · scheme Plantly · dev.example.Plantly · iOS 27.0 · synchronized folders"* ]]'
 ok "writes ios.env with the scheme" 'grep -qx "SCHEME=Plantly" "$r/.claude/ios.env"'
 ok "ios.env carries the cloud gate defaults" 'grep -qx "CLOUD_BRANCH_PREFIX=claude/" "$r/.claude/ios.env" && grep -qx "CLOUD_PUBLISH=1" "$r/.claude/ios.env"'
+ok "every template skill and agent arrives, with its references and scripts" 'diff <(cd "$kit/template/.claude" && find skills agents -type f | sort) <(cd "$r/.claude" && find skills agents -type f | sort) >/dev/null'
+ok "the retired principles.md and handoff.md are not installed" '[[ ! -e $r/.claude/skills/ios-loop/principles.md && ! -e $r/.claude/skills/ios-loop/playbooks/handoff.md ]]'
 ok "every kit script is executable" '[[ -z $(find "$r/scripts/ai" -name "*.sh" ! -perm -u+x) ]]'
 ok "CLAUDE.md has exactly one kit block" '[[ $(grep -c "ios-ai-kit:begin" "$r/CLAUDE.md") == 1 ]]'
 ok "settings has the five hook events and worktree.baseRef head" 'python3 -c "import json,sys;d=json.load(open(\"$r/.claude/settings.json\"));assert set(d[\"hooks\"])=={\"SessionStart\",\"PreToolUse\",\"PostToolUse\",\"PermissionRequest\",\"Stop\"} and d[\"worktree\"][\"baseRef\"]==\"head\""'

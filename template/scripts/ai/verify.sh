@@ -8,7 +8,8 @@
 #   3 tests    the scheme's tests, read from the .xcresult
 #   4 seams    no launch-argument read outside #if DEBUG (Release safety)
 #   5 reach    every app file/screen the change can affect (blast radius), to choose what to look at
-#   6 visual   each screen in .claude/ios-screens.txt at default, dark and AX5 (captured here, JUDGED by eye/agent)
+#   6 visual   each screen in .claude/ios-screens.txt at default, dark and AX5, captured here and judged by
+#              the AI judge (judge.py), or by a person with VISUAL_JUDGE=human (history.py judge)
 #   7 release  (with --release) the Release build audited for submission blockers (release.sh)
 # usage: verify.sh [--no-visual] [--no-tests] [--release] [screen names…]
 source "$(dirname "$0")/lib.sh"
@@ -61,7 +62,18 @@ else
     sed -i '' '$d' "$hist" 2>/dev/null || true  # replace the PASS row this gate just recorded
     record visual JUDGE 0 "sheets captured, not yet judged: scripts/ai/history.py judge PASS|FAIL"
     judge=1
-    printf '%-2s %-7s %-5s %s\n' 6 visual JUDGE "sheets captured; look, then scripts/ai/history.py judge PASS|FAIL"
+    if [[ ${VISUAL_JUDGE:-ai} != human ]]; then
+      # The AI judge (a separate Claude call) looks at every sheet; judge.py validates its answer and
+      # records the verdict. No verdict (no claude, an invalid answer) leaves the gate at JUDGE.
+      set +e; python3 "$AI_DIR/judge.py" > "$rep/judge.txt" 2>&1; jrc=$?; set -e
+      if [[ $jrc == 0 ]]; then rows[$last]=${rows[$last]/| visual | JUDGE |/| visual | PASS |}; judge=0; jword=PASS
+      elif [[ $jrc == 1 ]]; then rows[$last]=${rows[$last]/| visual | JUDGE |/| visual | FAIL |}; judge=0; fail=1; jword=FAIL
+      else jword=JUDGE; fi
+      printf '%-2s %-7s %-5s %s\n' 6 visual "$jword" "$([[ $jword == JUDGE ]] && tail -1 "$rep/judge.txt" || echo "AI judge, per screen:")"
+      grep '^judge: [^:]*: ' "$rep/judge.txt" | sed 's/^judge: /     /' || true
+    else
+      printf '%-2s %-7s %-5s %s\n' 6 visual JUDGE "sheets captured; look, then scripts/ai/history.py judge PASS|FAIL"
+    fi
   fi
 fi
 if [[ $release == 1 ]]; then gate 7 release "$AI_DIR/release.sh"; fi
@@ -70,6 +82,15 @@ if [[ $release == 1 ]]; then gate 7 release "$AI_DIR/release.sh"; fi
   echo "## Verification (${sha:0:7}$([[ $dirty == 1 ]] && echo ' + uncommitted changes'), $(date '+%Y-%m-%d %H:%M'))"
   echo; echo "| # | Gate | Result | Time | Summary |"; echo "|---|---|---|---|---|"
   printf '%s\n' "${rows[@]}"
+  if [[ -f $rep/judge.json ]]; then
+    python3 - "$rep/judge.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(f"\n**Visual verdict: {d['verdict']}** ({d['by']}).")
+for s in d["screens"]:
+    print(f"- {s['name']}: {s['verdict']}. {s['evidence']}")
+PY
+  fi
   if grep -q '^JUDGE ' "$rep/visual.txt" 2>/dev/null; then
     echo; echo "**Visual sheets to judge** (default · dark · AX5):"; grep '^JUDGE ' "$rep/visual.txt" | sed 's/^JUDGE /- /'
   fi
